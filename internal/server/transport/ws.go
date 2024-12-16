@@ -405,7 +405,9 @@ func (s *WsTransport) parsePortMappings() {
 }
 
 func (s *WsTransport) localListener(localAddr string, remoteAddr string) {
-	portListener, err := net.Listen("tcp", localAddr)
+	//portListener, err := net.Listen("tcp", localAddr)
+	portListener, err := listenWithBuffers("tcp", localAddr, 1024*1024, 5*1024*1024, 1320, "bbr")
+
 	if err != nil {
 		s.logger.Fatalf("failed to start listener on %s: %v", localAddr, err)
 		return

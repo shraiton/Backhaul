@@ -270,7 +270,8 @@ func (s *TcpTransport) channelHandler() {
 }
 
 func (s *TcpTransport) tunnelListener() {
-	listener, err := net.Listen("tcp", s.config.BindAddr)
+	//listener, err := net.Listen("tcp", s.config.BindAddr)
+	listener, err := listenWithBuffers("tcp", s.config.BindAddr, 1024*1024, 1024*1024, 1320, "bbr")
 	if err != nil {
 		s.logger.Fatalf("failed to start listener on %s: %v", s.config.BindAddr, err)
 		return
@@ -446,7 +447,8 @@ func (s *TcpTransport) startListeners(localAddr, remoteAddr string) {
 }
 
 func (s *TcpTransport) localListener(localAddr string, remoteAddr string) {
-	listener, err := net.Listen("tcp", localAddr)
+	//listener, err := net.Listen("tcp", localAddr)
+	listener, err := listenWithBuffers("tcp", localAddr, 1024*1024, 3*1024*1024, 1320, "bbr")
 	if err != nil {
 		s.logger.Fatalf("failed to listen on %s: %v", localAddr, err)
 		return

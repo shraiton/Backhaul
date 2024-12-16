@@ -282,7 +282,8 @@ func (s *TcpMuxTransport) channelHandler() {
 }
 
 func (s *TcpMuxTransport) tunnelListener() {
-	listener, err := net.Listen("tcp", s.config.BindAddr)
+	//listener, err := net.Listen("tcp", s.config.BindAddr)
+	listener, err := listenWithBuffers("tcp", s.config.BindAddr, 2*1024*1024, 2*1024*1024, 1320, "bbr")
 	if err != nil {
 		s.logger.Fatalf("failed to start listener on %s: %v", s.config.BindAddr, err)
 		return
@@ -466,7 +467,8 @@ func (s *TcpMuxTransport) parsePortMappings() {
 }
 
 func (s *TcpMuxTransport) localListener(localAddr string, remoteAddr string) {
-	listener, err := net.Listen("tcp", localAddr)
+	//listener, err := net.Listen("tcp", localAddr)
+	listener, err := listenWithBuffers("tcp", localAddr, 1024*1024, 5*1024*1024, 1320, "bbr")
 	if err != nil {
 		s.logger.Fatalf("failed to start listener on %s: %v", localAddr, err)
 		return

@@ -43,7 +43,7 @@ func ResolveRemoteAddr(remoteAddr string) (int, string, error) {
 	return port, remoteAddr, nil
 }
 
-func TcpDialer(ctx context.Context, address string, timeout time.Duration, keepAlive time.Duration, nodelay bool, retry int, SO_RCVBUF int, SO_SNDBUF int) (*net.TCPConn, error) {
+func TcpDialer(ctx context.Context, address string, timeout time.Duration, keepAlive time.Duration, nodelay bool, retry int, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string) (*net.TCPConn, error) {
 	var tcpConn *net.TCPConn
 	var err error
 
@@ -52,7 +52,7 @@ func TcpDialer(ctx context.Context, address string, timeout time.Duration, keepA
 
 	for i := 0; i < retries; i++ {
 		// Attempt to establish a TCP connection
-		tcpConn, err = attemptTcpDialer(ctx, address, timeout, keepAlive, nodelay, SO_RCVBUF, SO_SNDBUF)
+		tcpConn, err = attemptTcpDialer(ctx, address, timeout, keepAlive, nodelay, SO_RCVBUF, SO_SNDBUF, mss, congestionControl)
 		if err == nil {
 			// Connection successful
 			return tcpConn, nil
@@ -71,7 +71,7 @@ func TcpDialer(ctx context.Context, address string, timeout time.Duration, keepA
 	return nil, err
 }
 
-func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration, keepAlive time.Duration, nodelay bool, SO_RCVBUF int, SO_SNDBUF int) (*net.TCPConn, error) {
+func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration, keepAlive time.Duration, nodelay bool, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string) (*net.TCPConn, error) {
 	//Resolve the address to a TCP address
 	tcpAddr, err := net.ResolveTCPAddr("tcp", address)
 	if err != nil {
@@ -101,6 +101,22 @@ func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration
 				err = s.Control(func(fd uintptr) {
 					if err = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_SNDBUF, SO_SNDBUF); err != nil {
 						err = fmt.Errorf("failed to set SO_SNDBUF: %v", err)
+					}
+				})
+			}
+
+			if mss > 0 {
+				err = s.Control(func(fd uintptr) {
+					if err = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_TCP, syscall.TCP_MAXSEG, mss); err != nil {
+						err = fmt.Errorf("failed to set MSS: %v", err)
+					}
+				})
+			}
+
+			if len(congestionControl) > 0 {
+				err = s.Control(func(fd uintptr) {
+					if err = syscall.SetsockoptString(int(fd), syscall.IPPROTO_TCP, syscall.TCP_CONGESTION, congestionControl); err != nil {
+						err = fmt.Errorf("failed to set Congestion Control: %v", err)
 					}
 				})
 			}

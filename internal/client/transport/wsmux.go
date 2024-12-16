@@ -355,7 +355,7 @@ func (c *WsMuxTransport) localDialer(stream *smux.Stream, remoteAddr string) {
 		return
 	}
 
-	localConnection, err := TcpDialer(c.ctx, resolvedAddr, c.config.DialTimeOut, c.config.KeepAlive, true, 1, 32*1024, 32*1024)
+	localConnection, err := TcpDialer(c.ctx, resolvedAddr, c.config.DialTimeOut, c.config.KeepAlive, true, 1, 32*1024, 32*1024, 1320, "cubic")
 	if err != nil {
 		c.logger.Errorf("local dialer: %v", err)
 		stream.Close()
