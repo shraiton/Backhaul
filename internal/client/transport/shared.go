@@ -207,7 +207,7 @@ func WebSocketDialer(ctx context.Context, addr string, edgeIP string, path strin
 	return nil, err
 }
 
-func attemptDialWebSocket(ctx context.Context, addr string, edgeIP string, path string, timeout time.Duration, keepalive time.Duration, nodelay bool, token string, mode config.TransportType, SO_RCVBUF int, SO_SNDBUF int) (*websocket.Conn, error) {
+func attemptDialWebSocket(ctx context.Context, addr string, edgeIP string, path string, timeout time.Duration, keepalive time.Duration, nodelay bool, token string, mode config.TransportType, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string) (*websocket.Conn, error) {
 	// Generate a random X-user-id
 	rand.Seed(uint64(time.Now().UnixNano()))
 	randomUserID := rand.Int31() // Generate a random int64 number
@@ -287,7 +287,7 @@ func attemptDialWebSocket(ctx context.Context, addr string, edgeIP string, path 
 			EnableCompression: true,
 			HandshakeTimeout:  45 * time.Second, // default handshake timeout
 			NetDial: func(_, addr string) (net.Conn, error) {
-				conn, err := TcpDialer(ctx, edgeIP, timeout, keepalive, nodelay, 1, SO_RCVBUF, SO_SNDBUF)
+				conn, err := TcpDialer(ctx, edgeIP, timeout, keepalive, nodelay, 1, SO_RCVBUF, SO_SNDBUF, mss, congestionControl)
 				if err != nil {
 					return nil, err
 				}
@@ -307,7 +307,7 @@ func attemptDialWebSocket(ctx context.Context, addr string, edgeIP string, path 
 			TLSClientConfig:   tlsConfig,        // Pass the insecure TLS config here
 			HandshakeTimeout:  45 * time.Second, // default handshake timeout
 			NetDial: func(_, addr string) (net.Conn, error) {
-				conn, err := TcpDialer(ctx, edgeIP, timeout, keepalive, nodelay, 1, SO_RCVBUF, SO_SNDBUF)
+				conn, err := TcpDialer(ctx, edgeIP, timeout, keepalive, nodelay, 1, SO_RCVBUF, SO_SNDBUF, mss, congestionControl)
 				if err != nil {
 					return nil, err
 				}
