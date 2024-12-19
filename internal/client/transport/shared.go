@@ -73,13 +73,30 @@ func TcpDialer(ctx context.Context, address string, timeout time.Duration, keepA
 
 func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration, keepAlive time.Duration, nodelay bool, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string) (*net.TCPConn, error) {
 	//Resolve the address to a TCP address
+
+	var customDialer *TravorDial
+
+	if strings.Contains(address, "/") {
+		customDialer = NewTravorDialer(address)
+	} else {
+		fmt.Println("The string does not contain '/'.")
+	}
+
 	tcpAddr, err := net.ResolveTCPAddr("tcp", address)
 	if err != nil {
 		return nil, fmt.Errorf("DNS resolution: %v", err)
 	}
 
+	var localAddr *net.TCPAddr
+	if customDialer != nil {
+		localAddr = &net.TCPAddr{IP: customDialer.GetV6IP()}
+	} else {
+		localAddr = nil
+	}
+
 	// Options
 	dialer := &net.Dialer{
+		LocalAddr: localAddr,
 		Control: func(network, address string, s syscall.RawConn) error {
 			err := ReusePortControl(network, address, s)
 			if err != nil {
