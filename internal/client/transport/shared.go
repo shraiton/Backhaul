@@ -75,23 +75,15 @@ func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration
 	//Resolve the address to a TCP address
 
 	var customDialer *TravorDial
-
+	var localAddr *net.TCPAddr
 	if strings.Contains(address, "/") {
 		customDialer = NewTravorDialer(address)
-	} else {
-		fmt.Println("The string does not contain '/'.")
+		localAddr = &net.TCPAddr{IP: customDialer.GetV6IP()}
 	}
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", address)
 	if err != nil {
 		return nil, fmt.Errorf("DNS resolution: %v", err)
-	}
-
-	var localAddr *net.TCPAddr
-	if customDialer != nil {
-		localAddr = &net.TCPAddr{IP: customDialer.GetV6IP()}
-	} else {
-		localAddr = nil
 	}
 
 	// Options
