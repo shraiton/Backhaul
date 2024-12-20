@@ -74,7 +74,7 @@ func (d *TravorDial) GetV6IP() net.IP {
 	if fixedBindIP == nil {
 		fixedBindIP, err = generateIPv6(d.v6subnet, 1)
 		if err != nil {
-			fmt.Println("error generating v6:", err.Error())
+			//fmt.Println("error generating v6:", err.Error())
 			return nil
 		}
 	}
@@ -83,7 +83,7 @@ func (d *TravorDial) GetV6IP() net.IP {
 		fixCounter = 0
 		fixedBindIP, err = generateIPv6(d.v6subnet, 1)
 		if err != nil {
-			fmt.Println("error gen2", err.Error())
+			//fmt.Println("error gen2", err.Error())
 			return nil
 		}
 	}

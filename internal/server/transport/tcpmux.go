@@ -34,6 +34,8 @@ type TcpMuxTransport struct {
 	restartMutex     sync.Mutex
 	streamCounter    int32
 	sessionCounter   int32
+	Matchers         []string
+	PortAndMatchers  map[int][]string
 }
 
 type TcpMuxConfig struct {
@@ -53,7 +55,7 @@ type TcpMuxConfig struct {
 	WebPort          int
 	KeepAlive        time.Duration
 	Heartbeat        time.Duration // in seconds
-
+	Matchers         []string
 }
 
 func NewTcpMuxServer(parentCtx context.Context, config *TcpMuxConfig, logger *logrus.Logger) *TcpMuxTransport {
@@ -83,6 +85,7 @@ func NewTcpMuxServer(parentCtx context.Context, config *TcpMuxConfig, logger *lo
 		streamCounter:    0,
 		sessionCounter:   0,
 		usageMonitor:     web.NewDataStore(fmt.Sprintf(":%v", config.WebPort), ctx, config.SnifferLog, config.Sniffer, &config.TunnelStatus, logger),
+		PortAndMatchers:  make(map[int][]string),
 	}
 
 	return server
@@ -108,6 +111,7 @@ func (s *TcpMuxTransport) Start() {
 
 		go s.parsePortMappings()
 		go s.channelHandler()
+		s.ParseMatchers()
 
 		s.logger.Infof("starting %d handle loops on each CPU thread", numCPU)
 
@@ -375,6 +379,22 @@ func (s *TcpMuxTransport) acceptTunnelConn(listener net.Listener) {
 
 }
 
+func (s *TcpMuxTransport) ParseMatchers() {
+	//we only support simple single port for now
+	//443=helloworld,othermatcher,othermatcher2
+
+	for _, stringsMatchers := range s.config.Matchers {
+		parts := strings.Split(stringsMatchers, "=")
+
+		var port, matchers string
+		port = strings.TrimSpace(parts[0])
+		portint, _ := strconv.Atoi(port)
+		matchers = strings.TrimSpace(parts[1])
+
+		s.PortAndMatchers[portint] = strings.Split(matchers, ",")
+	}
+}
+
 func (s *TcpMuxTransport) parsePortMappings() {
 	for _, portMapping := range s.config.Ports {
 		parts := strings.Split(portMapping, "=")
@@ -484,6 +504,23 @@ func (s *TcpMuxTransport) localListener(localAddr string, remoteAddr string) {
 }
 
 func (s *TcpMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr string) {
+
+	listenerPort, err := getPort(listener.Addr().String())
+	if err != nil {
+		s.logger.Errorf("error listener because we cannot extract the listener port %s", err)
+		return
+	}
+
+	var matchersListForThisPort []string
+	var matchers_exists bool
+	var exists bool
+
+	if matchersListForThisPort, exists = s.PortAndMatchers[listenerPort]; exists {
+		matchers_exists = true
+	} else {
+		matchers_exists = false
+	}
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -502,6 +539,25 @@ func (s *TcpMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr stri
 				s.logger.Warnf("disarded non-TCP connection from %s", conn.RemoteAddr().String())
 				conn.Close()
 				continue
+			}
+
+			var bfconn *BufferedConn
+			if matchers_exists {
+
+				bfconn, err = NewBufferedConn(conn, 4096)
+				if err != nil {
+					s.logger.Warnf("error wrapping incoming conn into buffered connection %s CLOSING CONNECTION", err.Error())
+					conn.Close()
+					continue
+				}
+
+				connString := string(bfconn.buffer)
+				if !containsAny(connString, matchersListForThisPort) {
+					s.logger.Debugf("connection coming from %s does not contain matchers we need", conn.RemoteAddr().String())
+					conn.Close()
+					continue
+				}
+
 			}
 
 			// trying to disable tcpnodelay

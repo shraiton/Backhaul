@@ -39,6 +39,7 @@ type ServerConfig struct {
 	MuxCon           int           `toml:"mux_con"`
 	AcceptUDP        bool          `toml:"accept_udp"`
 	CIDR             string        `toml:"cidr"`
+	Matchers         []string      `toml:"matchers"`
 }
 
 // ClientConfig represents the configuration for the client.

@@ -20,17 +20,19 @@ import (
 )
 
 type WsTransport struct {
-	config         *WsConfig
-	parentctx      context.Context
-	ctx            context.Context
-	cancel         context.CancelFunc
-	logger         *logrus.Logger
-	tunnelChannel  chan TunnelChannel
-	localChannel   chan LocalTCPConn
-	reqNewConnChan chan struct{}
-	controlChannel *websocket.Conn
-	restartMutex   sync.Mutex
-	usageMonitor   *web.Usage
+	config          *WsConfig
+	parentctx       context.Context
+	ctx             context.Context
+	cancel          context.CancelFunc
+	logger          *logrus.Logger
+	tunnelChannel   chan TunnelChannel
+	localChannel    chan LocalTCPConn
+	reqNewConnChan  chan struct{}
+	controlChannel  *websocket.Conn
+	restartMutex    sync.Mutex
+	usageMonitor    *web.Usage
+	Matchers        []string
+	PortAndMatchers map[int][]string
 }
 
 type WsConfig struct {
@@ -48,7 +50,7 @@ type WsConfig struct {
 	ChannelSize  int
 	WebPort      int
 	Mode         config.TransportType // ws or wss
-
+	Matchers     []string
 }
 
 func NewWSServer(parentCtx context.Context, config *WsConfig, logger *logrus.Logger) *WsTransport {
@@ -57,16 +59,17 @@ func NewWSServer(parentCtx context.Context, config *WsConfig, logger *logrus.Log
 
 	// Initialize the TcpTransport struct
 	server := &WsTransport{
-		config:         config,
-		parentctx:      parentCtx,
-		ctx:            ctx,
-		cancel:         cancel,
-		logger:         logger,
-		tunnelChannel:  make(chan TunnelChannel, config.ChannelSize),
-		localChannel:   make(chan LocalTCPConn, config.ChannelSize),
-		reqNewConnChan: make(chan struct{}, config.ChannelSize),
-		controlChannel: nil, // will be set when a control connection is established
-		usageMonitor:   web.NewDataStore(fmt.Sprintf(":%v", config.WebPort), ctx, config.SnifferLog, config.Sniffer, &config.TunnelStatus, logger),
+		config:          config,
+		parentctx:       parentCtx,
+		ctx:             ctx,
+		cancel:          cancel,
+		logger:          logger,
+		tunnelChannel:   make(chan TunnelChannel, config.ChannelSize),
+		localChannel:    make(chan LocalTCPConn, config.ChannelSize),
+		reqNewConnChan:  make(chan struct{}, config.ChannelSize),
+		controlChannel:  nil, // will be set when a control connection is established
+		usageMonitor:    web.NewDataStore(fmt.Sprintf(":%v", config.WebPort), ctx, config.SnifferLog, config.Sniffer, &config.TunnelStatus, logger),
+		PortAndMatchers: make(map[int][]string),
 	}
 
 	return server
@@ -250,6 +253,7 @@ func (s *WsTransport) tunnelListener() {
 
 				go s.channelHandler()
 				go s.parsePortMappings()
+				s.ParseMatchers()
 
 				s.logger.Infof("starting %d handle loops on each CPU thread", numCPU)
 
@@ -311,6 +315,22 @@ func (s *WsTransport) tunnelListener() {
 		s.controlChannel.Close()
 	}
 
+}
+
+func (s *WsTransport) ParseMatchers() {
+	//we only support simple single port for now
+	//443=helloworld,othermatcher,othermatcher2
+
+	for _, stringsMatchers := range s.config.Matchers {
+		parts := strings.Split(stringsMatchers, "=")
+
+		var port, matchers string
+		port = strings.TrimSpace(parts[0])
+		portint, _ := strconv.Atoi(port)
+		matchers = strings.TrimSpace(parts[1])
+
+		s.PortAndMatchers[portint] = strings.Split(matchers, ",")
+	}
 }
 
 func (s *WsTransport) parsePortMappings() {
@@ -424,6 +444,23 @@ func (s *WsTransport) localListener(localAddr string, remoteAddr string) {
 }
 
 func (s *WsTransport) acceptLocalConn(listener net.Listener, remoteAddr string) {
+
+	listenerPort, err := getPort(listener.Addr().String())
+	if err != nil {
+		s.logger.Errorf("error listener because we cannot extract the listener port %s", err)
+		return
+	}
+
+	var matchersListForThisPort []string
+	var matchers_exists bool
+	var exists bool
+
+	if matchersListForThisPort, exists = s.PortAndMatchers[listenerPort]; exists {
+		matchers_exists = true
+	} else {
+		matchers_exists = false
+	}
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -443,6 +480,25 @@ func (s *WsTransport) acceptLocalConn(listener net.Listener, remoteAddr string) 
 				s.logger.Warnf("disarded non-TCP connection from %s", conn.RemoteAddr().String())
 				conn.Close()
 				continue
+			}
+
+			var bfconn *BufferedConn
+			if matchers_exists {
+
+				bfconn, err = NewBufferedConn(conn, 4096)
+				if err != nil {
+					s.logger.Warnf("error wrapping incoming conn into buffered connection %s CLOSING CONNECTION", err.Error())
+					conn.Close()
+					continue
+				}
+
+				connString := string(bfconn.buffer)
+				if !containsAny(connString, matchersListForThisPort) {
+					s.logger.Debugf("connection coming from %s does not contain matchers we need", conn.RemoteAddr().String())
+					conn.Close()
+					continue
+				}
+
 			}
 
 			// trying to enable tcpnodelay

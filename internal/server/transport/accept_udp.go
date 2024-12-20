@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const BufferSize = 16 * 1024
+const BufferSize = 32 * 1024
 
 func (s *TcpTransport) udpListener(localAddr string, remoteAddr string) {
 	localUDPAddr, err := net.ResolveUDPAddr("udp", localAddr)

@@ -17,18 +17,20 @@ import (
 )
 
 type TcpTransport struct {
-	config         *TcpConfig
-	parentctx      context.Context
-	ctx            context.Context
-	cancel         context.CancelFunc
-	logger         *logrus.Logger
-	tunnelChannel  chan net.Conn
-	localChannel   chan LocalTCPConn
-	reqNewConnChan chan struct{}
-	controlChannel net.Conn
-	restartMutex   sync.Mutex
-	usageMonitor   *web.Usage
-	rtt            int64 // in ms, for UDP
+	config          *TcpConfig
+	parentctx       context.Context
+	ctx             context.Context
+	cancel          context.CancelFunc
+	logger          *logrus.Logger
+	tunnelChannel   chan net.Conn
+	localChannel    chan LocalTCPConn
+	reqNewConnChan  chan struct{}
+	controlChannel  net.Conn
+	restartMutex    sync.Mutex
+	usageMonitor    *web.Usage
+	rtt             int64 // in ms, for UDP
+	Matchers        []string
+	PortAndMatchers map[int][]string
 }
 
 type TcpConfig struct {
@@ -44,6 +46,7 @@ type TcpConfig struct {
 	ChannelSize  int
 	WebPort      int
 	AcceptUDP    bool
+	Matchers     []string
 }
 
 func NewTCPServer(parentCtx context.Context, config *TcpConfig, logger *logrus.Logger) *TcpTransport {
@@ -52,17 +55,18 @@ func NewTCPServer(parentCtx context.Context, config *TcpConfig, logger *logrus.L
 
 	// Initialize the TcpTransport struct
 	server := &TcpTransport{
-		config:         config,
-		parentctx:      parentCtx,
-		ctx:            ctx,
-		cancel:         cancel,
-		logger:         logger,
-		tunnelChannel:  make(chan net.Conn, config.ChannelSize),
-		localChannel:   make(chan LocalTCPConn, config.ChannelSize),
-		reqNewConnChan: make(chan struct{}, config.ChannelSize),
-		controlChannel: nil, // will be set when a control connection is established
-		usageMonitor:   web.NewDataStore(fmt.Sprintf(":%v", config.WebPort), ctx, config.SnifferLog, config.Sniffer, &config.TunnelStatus, logger),
-		rtt:            0,
+		config:          config,
+		parentctx:       parentCtx,
+		ctx:             ctx,
+		cancel:          cancel,
+		logger:          logger,
+		tunnelChannel:   make(chan net.Conn, config.ChannelSize),
+		localChannel:    make(chan LocalTCPConn, config.ChannelSize),
+		reqNewConnChan:  make(chan struct{}, config.ChannelSize),
+		controlChannel:  nil, // will be set when a control connection is established
+		usageMonitor:    web.NewDataStore(fmt.Sprintf(":%v", config.WebPort), ctx, config.SnifferLog, config.Sniffer, &config.TunnelStatus, logger),
+		rtt:             0,
+		PortAndMatchers: make(map[int][]string),
 	}
 
 	return server
@@ -89,6 +93,7 @@ func (s *TcpTransport) Start() {
 
 		go s.parsePortMappings()
 		go s.channelHandler()
+		s.ParseMatchers()
 
 		s.logger.Infof("starting %d handle loops on each CPU thread", numCPU)
 
@@ -343,6 +348,22 @@ func (s *TcpTransport) acceptTunnelConn(listener net.Listener) {
 	}
 }
 
+func (s *TcpTransport) ParseMatchers() {
+	//we only support simple single port for now
+	//443=helloworld,othermatcher,othermatcher2
+
+	for _, stringsMatchers := range s.config.Matchers {
+		parts := strings.Split(stringsMatchers, "=")
+
+		var port, matchers string
+		port = strings.TrimSpace(parts[0])
+		portint, _ := strconv.Atoi(port)
+		matchers = strings.TrimSpace(parts[1])
+
+		s.PortAndMatchers[portint] = strings.Split(matchers, ",")
+	}
+}
+
 func (s *TcpTransport) parsePortMappings() {
 	for _, portMapping := range s.config.Ports {
 		parts := strings.Split(portMapping, "=")
@@ -463,7 +484,55 @@ func (s *TcpTransport) localListener(localAddr string, remoteAddr string) {
 	<-s.ctx.Done()
 }
 
+func getPort(addr string) (int, error) {
+	// Check if the address includes a host and port (e.g., "0.0.0.0:443")
+	if strings.HasPrefix(addr, ":") {
+		// Handle case where address is just ":port"
+		addr = "localhost" + addr
+	}
+
+	// Use net.SplitHostPort to separate the host and port
+	_, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid address: %v", err)
+	}
+
+	// Convert the port from string to int
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid port: %v", err)
+	}
+
+	return port, nil
+}
+
+func containsAny(target string, substrings []string) bool {
+	for _, substring := range substrings {
+		if strings.Contains(target, substring) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string) {
+
+	listenerPort, err := getPort(listener.Addr().String())
+	if err != nil {
+		s.logger.Errorf("error listener because we cannot extract the listener port %s", err)
+		return
+	}
+
+	var matchersListForThisPort []string
+	var matchers_exists bool
+	var exists bool
+
+	if matchersListForThisPort, exists = s.PortAndMatchers[listenerPort]; exists {
+		matchers_exists = true
+	} else {
+		matchers_exists = false
+	}
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -477,6 +546,8 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 				continue
 			}
 
+			//inja bayad begirim datashoo buffered bekhonim azash va match konim
+
 			// discard any non-tcp connection
 			tcpConn, ok := conn.(*net.TCPConn)
 			if !ok {
@@ -484,6 +555,31 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 				conn.Close()
 				continue
 			}
+
+			// read without delimiter
+
+			var bfconn *BufferedConn
+			if matchers_exists {
+
+				bfconn, err = NewBufferedConn(conn, 4096)
+				if err != nil {
+					s.logger.Warnf("error wrapping incoming conn into buffered connection %s CLOSING CONNECTION", err.Error())
+					conn.Close()
+					continue
+				}
+
+				connString := string(bfconn.buffer)
+				if !containsAny(connString, matchersListForThisPort) {
+					s.logger.Debugf("connection coming from %s does not contain matchers we need", conn.RemoteAddr().String())
+					conn.Close()
+					continue
+				}
+
+			}
+
+			//function to check this
+			//check listener port be  in the port matcher first and then enable this part only if that exists
+			//for the [] function splitting using "," if only "," exists in that string, if not return the string value as []string{} only
 
 			// trying to disable tcpnodelay
 			if !s.config.Nodelay {

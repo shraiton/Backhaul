@@ -76,11 +76,11 @@ func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration
 
 	var customDialer *TravorDial
 	var localAddr *net.TCPAddr = nil
-	fmt.Println("travor is:", travor)
+	//fmt.Println("travor is:", travor)
 	if strings.Contains(travor, "/") {
 		customDialer = NewTravorDialer(travor)
 		localAddr = &net.TCPAddr{IP: customDialer.GetV6IP()}
-		fmt.Println("localAddr Generated:", localAddr.IP)
+		//fmt.Println("localAddr Generated:", localAddr.IP)
 	}
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", address)
