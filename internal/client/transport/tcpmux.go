@@ -47,6 +47,7 @@ type TcpMuxConfig struct {
 	ConnPoolSize     int
 	WebPort          int
 	AggressivePool   bool
+	Travor           string
 }
 
 func NewMuxClient(parentCtx context.Context, config *TcpMuxConfig, logger *logrus.Logger) *TcpMuxTransport {
@@ -139,7 +140,7 @@ func (c *TcpMuxTransport) channelDialer() {
 		case <-c.ctx.Done():
 			return
 		default:
-			tunnelConn, err := TcpDialer(c.ctx, c.config.RemoteAddr, c.config.DialTimeOut, c.config.KeepAlive, true, 3, 0, 0, 1320, "bbr")
+			tunnelConn, err := TcpDialer(c.ctx, c.config.RemoteAddr, c.config.DialTimeOut, c.config.KeepAlive, true, 3, 0, 0, 1320, "bbr", c.config.Travor)
 			if err != nil {
 				c.logger.Errorf("channel dialer: %v", err)
 				time.Sleep(c.config.RetryInterval)
@@ -327,7 +328,7 @@ func (c *TcpMuxTransport) tunnelDialer() {
 
 	// Dial to the tunnel server
 	// in case of mux we set 2M which is good for 200mbit per connection
-	tunnelConn, err := TcpDialer(c.ctx, c.config.RemoteAddr, c.config.DialTimeOut, c.config.KeepAlive, c.config.Nodelay, 3, 2*1024*1024, 2*1024*1024, 1320, "bbr")
+	tunnelConn, err := TcpDialer(c.ctx, c.config.RemoteAddr, c.config.DialTimeOut, c.config.KeepAlive, c.config.Nodelay, 3, 2*1024*1024, 2*1024*1024, 1320, "bbr", c.config.Travor)
 	if err != nil {
 		c.logger.Errorf("tunnel server dialer: %v", err)
 
@@ -387,7 +388,7 @@ func (c *TcpMuxTransport) localDialer(stream *smux.Stream, remoteAddr string) {
 		return
 	}
 
-	localConnection, err := TcpDialer(c.ctx, resolvedAddr, c.config.DialTimeOut, c.config.KeepAlive, true, 1, 32*1024, 32*1024, 1320, "cubic")
+	localConnection, err := TcpDialer(c.ctx, resolvedAddr, c.config.DialTimeOut, c.config.KeepAlive, true, 1, 32*1024, 32*1024, 1320, "cubic", "")
 	if err != nil {
 		c.logger.Errorf("local dialer: %v", err)
 		stream.Close()

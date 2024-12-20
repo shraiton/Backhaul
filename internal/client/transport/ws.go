@@ -44,6 +44,7 @@ type WsConfig struct {
 	Mode           config.TransportType
 	AggressivePool bool
 	EdgeIP         string
+	Travor         string
 }
 
 func NewWSClient(parentCtx context.Context, config *WsConfig, logger *logrus.Logger) *WsTransport {
@@ -336,7 +337,7 @@ func (c *WsTransport) tunnelDialer() {
 }
 
 func (c *WsTransport) localDialer(tunnelCon *websocket.Conn, remoteAddr string, port int) {
-	localConn, err := TcpDialer(c.ctx, remoteAddr, c.config.DialTimeOut, c.config.KeepAlive, true, 1, 32*1024, 32*1024, 1320, "cubic")
+	localConn, err := TcpDialer(c.ctx, remoteAddr, c.config.DialTimeOut, c.config.KeepAlive, true, 1, 32*1024, 32*1024, 1320, "cubic", "")
 	if err != nil {
 		c.logger.Errorf("local dialer: %v", err)
 		tunnelCon.Close()

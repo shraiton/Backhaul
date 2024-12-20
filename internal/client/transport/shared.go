@@ -43,7 +43,7 @@ func ResolveRemoteAddr(remoteAddr string) (int, string, error) {
 	return port, remoteAddr, nil
 }
 
-func TcpDialer(ctx context.Context, address string, timeout time.Duration, keepAlive time.Duration, nodelay bool, retry int, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string) (*net.TCPConn, error) {
+func TcpDialer(ctx context.Context, address string, timeout time.Duration, keepAlive time.Duration, nodelay bool, retry int, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string, travor string) (*net.TCPConn, error) {
 	var tcpConn *net.TCPConn
 	var err error
 
@@ -52,7 +52,7 @@ func TcpDialer(ctx context.Context, address string, timeout time.Duration, keepA
 
 	for i := 0; i < retries; i++ {
 		// Attempt to establish a TCP connection
-		tcpConn, err = attemptTcpDialer(ctx, address, timeout, keepAlive, nodelay, SO_RCVBUF, SO_SNDBUF, mss, congestionControl)
+		tcpConn, err = attemptTcpDialer(ctx, address, timeout, keepAlive, nodelay, SO_RCVBUF, SO_SNDBUF, mss, congestionControl, travor)
 		if err == nil {
 			// Connection successful
 			return tcpConn, nil
@@ -71,13 +71,13 @@ func TcpDialer(ctx context.Context, address string, timeout time.Duration, keepA
 	return nil, err
 }
 
-func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration, keepAlive time.Duration, nodelay bool, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string) (*net.TCPConn, error) {
+func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration, keepAlive time.Duration, nodelay bool, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string, travor string) (*net.TCPConn, error) {
 	//Resolve the address to a TCP address
 
 	var customDialer *TravorDial
 	var localAddr *net.TCPAddr
-	if strings.Contains(address, "/") {
-		customDialer = NewTravorDialer(address)
+	if strings.Contains(travor, "/") {
+		customDialer = NewTravorDialer(travor)
 		localAddr = &net.TCPAddr{IP: customDialer.GetV6IP()}
 	}
 
@@ -188,7 +188,7 @@ func ReusePortControl(network, address string, s syscall.RawConn) error {
 	return controlErr
 }
 
-func WebSocketDialer(ctx context.Context, addr string, edgeIP string, path string, timeout time.Duration, keepalive time.Duration, nodelay bool, token string, mode config.TransportType, retry int, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string) (*websocket.Conn, error) {
+func WebSocketDialer(ctx context.Context, addr string, edgeIP string, path string, timeout time.Duration, keepalive time.Duration, nodelay bool, token string, mode config.TransportType, retry int, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string, travor string) (*websocket.Conn, error) {
 	var tunnelWSConn *websocket.Conn
 	var err error
 
@@ -197,7 +197,7 @@ func WebSocketDialer(ctx context.Context, addr string, edgeIP string, path strin
 
 	for i := 0; i < retries; i++ {
 		// Attempt to dial the WebSocket
-		tunnelWSConn, err = attemptDialWebSocket(ctx, addr, edgeIP, path, timeout, keepalive, nodelay, token, mode, SO_RCVBUF, SO_SNDBUF, mss, congestionControl)
+		tunnelWSConn, err = attemptDialWebSocket(ctx, addr, edgeIP, path, timeout, keepalive, nodelay, token, mode, SO_RCVBUF, SO_SNDBUF, mss, congestionControl, travor)
 		if err == nil {
 			// If successful, return the connection
 			return tunnelWSConn, nil
@@ -216,7 +216,7 @@ func WebSocketDialer(ctx context.Context, addr string, edgeIP string, path strin
 	return nil, err
 }
 
-func attemptDialWebSocket(ctx context.Context, addr string, edgeIP string, path string, timeout time.Duration, keepalive time.Duration, nodelay bool, token string, mode config.TransportType, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string) (*websocket.Conn, error) {
+func attemptDialWebSocket(ctx context.Context, addr string, edgeIP string, path string, timeout time.Duration, keepalive time.Duration, nodelay bool, token string, mode config.TransportType, SO_RCVBUF int, SO_SNDBUF int, mss int, congestionControl string, travor string) (*websocket.Conn, error) {
 	// Generate a random X-user-id
 	rand.Seed(uint64(time.Now().UnixNano()))
 	randomUserID := rand.Int31() // Generate a random int64 number
@@ -296,7 +296,7 @@ func attemptDialWebSocket(ctx context.Context, addr string, edgeIP string, path 
 			EnableCompression: true,
 			HandshakeTimeout:  45 * time.Second, // default handshake timeout
 			NetDial: func(_, addr string) (net.Conn, error) {
-				conn, err := TcpDialer(ctx, edgeIP, timeout, keepalive, nodelay, 1, SO_RCVBUF, SO_SNDBUF, mss, congestionControl)
+				conn, err := TcpDialer(ctx, edgeIP, timeout, keepalive, nodelay, 1, SO_RCVBUF, SO_SNDBUF, mss, congestionControl, travor)
 				if err != nil {
 					return nil, err
 				}
@@ -316,7 +316,7 @@ func attemptDialWebSocket(ctx context.Context, addr string, edgeIP string, path 
 			TLSClientConfig:   tlsConfig,        // Pass the insecure TLS config here
 			HandshakeTimeout:  45 * time.Second, // default handshake timeout
 			NetDial: func(_, addr string) (net.Conn, error) {
-				conn, err := TcpDialer(ctx, edgeIP, timeout, keepalive, nodelay, 1, SO_RCVBUF, SO_SNDBUF, mss, congestionControl)
+				conn, err := TcpDialer(ctx, edgeIP, timeout, keepalive, nodelay, 1, SO_RCVBUF, SO_SNDBUF, mss, congestionControl, travor)
 				if err != nil {
 					return nil, err
 				}

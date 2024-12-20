@@ -37,6 +37,7 @@ type UdpConfig struct {
 	WebPort        int
 	Sniffer        bool
 	AggressivePool bool
+	Travor         string
 }
 
 func NewUDPClient(parentCtx context.Context, config *UdpConfig, logger *logrus.Logger) *UdpTransport {
@@ -121,7 +122,7 @@ func (c *UdpTransport) channelDialer() {
 		case <-c.ctx.Done():
 			return
 		default:
-			tunnelTCPConn, err := TcpDialer(c.ctx, c.config.RemoteAddr, c.config.DialTimeOut, 30, true, 3, 0, 0, 1320, "bbr")
+			tunnelTCPConn, err := TcpDialer(c.ctx, c.config.RemoteAddr, c.config.DialTimeOut, 30, true, 3, 0, 0, 1320, "bbr", "")
 			if err != nil {
 				c.logger.Errorf("channel dialer: %v", err)
 				time.Sleep(c.config.RetryInterval)
