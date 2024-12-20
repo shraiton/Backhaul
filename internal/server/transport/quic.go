@@ -364,11 +364,11 @@ func (s *QuicTransport) acceptTunCon(listener *quic.Listener) {
 			}
 
 			// Drop all suspicious packets from other address rather than server
-			if s.controlChannel != nil && s.controlChannel.RemoteAddr().(*net.UDPAddr).IP.String() != conn.RemoteAddr().(*net.UDPAddr).IP.String() {
-				s.logger.Debugf("suspicious packet from %v. expected address: %v. discarding packet...", conn.RemoteAddr().(*net.UDPAddr).IP.String(), s.controlChannel.RemoteAddr().(*net.UDPAddr).IP.String())
-				//	conn.Close()
-				continue
-			}
+			//if s.controlChannel != nil && s.controlChannel.RemoteAddr().(*net.UDPAddr).IP.String() != conn.RemoteAddr().(*net.UDPAddr).IP.String() {
+			//	s.logger.Debugf("suspicious packet from %v. expected address: %v. discarding packet...", conn.RemoteAddr().(*net.UDPAddr).IP.String(), s.controlChannel.RemoteAddr().(*net.UDPAddr).IP.String())
+			//	//	conn.Close()
+			//	continue
+			//}
 
 			// try to establish a new channel
 			if s.controlChannel == nil {
