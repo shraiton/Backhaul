@@ -80,9 +80,8 @@ func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration
 	if strings.Contains(travor, "/") {
 		customDialer = NewTravorDialer(travor)
 		localAddr = &net.TCPAddr{IP: customDialer.GetV6IP()}
+		fmt.Println("localAddr Generated:", localAddr.IP)
 	}
-
-	fmt.Println("localAddr Generated:", localAddr.IP)
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", address)
 	if err != nil {
