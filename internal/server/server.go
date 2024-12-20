@@ -1,9 +1,17 @@
 package server
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"os/exec"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/musix/backhaul/internal/config"
@@ -30,7 +38,246 @@ func NewServer(cfg *config.ServerConfig, parentCtx context.Context) *Server {
 	}
 }
 
+// ensureIPSetExists checks if the ipset exists, and creates it if not
+func ensureIPSetExists(ipsetName string) error {
+	cmd := exec.Command("ipset", "list", ipsetName)
+	if err := cmd.Run(); err != nil {
+		// Create the ipset if it doesn't exist
+		log.Printf("ipset %s not found, creating it...", ipsetName)
+		cmd = exec.Command("ipset", "create", ipsetName, "hash:net")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to create ipset %s: %w", ipsetName, err)
+		}
+	}
+	return nil
+}
+
+// addCIDRToIPSet adds a CIDR to the specified ipset, handling duplicates gracefully
+func addCIDRToIPSet(ipsetName, cidr string) error {
+	cmd := exec.Command("ipset", "add", ipsetName, cidr)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Check if the error is due to the CIDR already being added
+		if strings.Contains(string(output), "already added") {
+			return nil // Ignore "already added" errors
+		}
+		return fmt.Errorf("failed to add CIDR %s to ipset %s: %v, output: %s", cidr, ipsetName, err, string(output))
+	}
+	return nil
+}
+
+// processCIDRs processes the CIDR blocks from a file and adds them to the ipset
+func processCIDRs(fileName, ipsetName string, knownCIDRs *sync.Map) error {
+	// Open the file
+	file, err := os.Open(fileName)
+	if err != nil {
+		return fmt.Errorf("could not open file %s: %w", fileName, err)
+	}
+	defer file.Close()
+
+	// Read the file line by line
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip blank or invalid lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(line); err != nil {
+			log.Printf("Skipping invalid CIDR: %s\n", line)
+			continue
+		}
+
+		// Check if the CIDR is already known
+		if _, exists := knownCIDRs.Load(line); exists {
+			continue
+		}
+
+		// Add valid CIDR to the ipset
+		if err := addCIDRToIPSet(ipsetName, line); err != nil {
+			log.Printf("Error adding CIDR %s to ipset %s: %v\n", line, ipsetName, err)
+			continue
+		}
+
+		// Mark the CIDR as known
+		knownCIDRs.Store(line, true)
+	}
+
+	// Check for file reading errors
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading file %s: %w", fileName, err)
+	}
+
+	return nil
+}
+
+// watchFile watches the file for changes and updates the ipset
+func watchFile(fileName, ipsetName string, knownCIDRs *sync.Map) {
+	var lastModTime time.Time
+
+	for {
+		// Check the file's last modification time
+		info, err := os.Stat(fileName)
+		if err != nil {
+			log.Printf("Error checking file %s: %v\n", fileName, err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		// If the file has been modified since the last check, process it
+		if info.ModTime().After(lastModTime) {
+			log.Println("File has changed. Processing...")
+			if err := processCIDRs(fileName, ipsetName, knownCIDRs); err != nil {
+				log.Printf("Error processing file: %v\n", err)
+			} else {
+				lastModTime = info.ModTime()
+			}
+		}
+
+		// Wait for 10 seconds before checking again
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func checkIPSetAvailability() {
+	// Check if ipset is available
+	_, err := exec.LookPath("ipset")
+	if err != nil {
+		log.Println("Error: ipset is not available on this system. Please install ipset and try again.")
+		log.Fatal(err) // Exit the application with an error
+	}
+	log.Println("ipset is available.")
+}
+
+// ensureIPSetExists checks if the ipset exists, and creates it if not
+func ensureIPSetExists(ipsetName string) error {
+	cmd := exec.Command("ipset", "list", ipsetName)
+	if err := cmd.Run(); err != nil {
+		// Create the ipset if it doesn't exist
+		log.Printf("ipset %s not found, creating it...", ipsetName)
+		cmd = exec.Command("ipset", "create", ipsetName, "hash:net")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to create ipset %s: %w", ipsetName, err)
+		}
+	}
+	return nil
+}
+
+// addCIDRToIPSet adds a CIDR to the specified ipset, handling duplicates gracefully
+func addCIDRToIPSet(ipsetName, cidr string) error {
+	cmd := exec.Command("ipset", "add", ipsetName, cidr)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Check if the error is due to the CIDR already being added
+		if strings.Contains(string(output), "already added") {
+			return nil // Ignore "already added" errors
+		}
+		return fmt.Errorf("failed to add CIDR %s to ipset %s: %v, output: %s", cidr, ipsetName, err, string(output))
+	}
+	return nil
+}
+
+// processCIDRs processes the CIDR blocks from a file and adds them to the ipset
+func processCIDRs(fileName, ipsetName string, knownCIDRs *sync.Map) error {
+	// Open the file
+	file, err := os.Open(fileName)
+	if err != nil {
+		return fmt.Errorf("could not open file %s: %w", fileName, err)
+	}
+	defer file.Close()
+
+	// Read the file line by line
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip blank or invalid lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if _, _, err := net.ParseCIDR(line); err != nil {
+			log.Printf("Skipping invalid CIDR: %s\n", line)
+			continue
+		}
+
+		// Check if the CIDR is already known
+		if _, exists := knownCIDRs.Load(line); exists {
+			continue
+		}
+
+		// Add valid CIDR to the ipset
+		if err := addCIDRToIPSet(ipsetName, line); err != nil {
+			log.Printf("Error adding CIDR %s to ipset %s: %v\n", line, ipsetName, err)
+			continue
+		}
+
+		// Mark the CIDR as known
+		knownCIDRs.Store(line, true)
+	}
+
+	// Check for file reading errors
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading file %s: %w", fileName, err)
+	}
+
+	return nil
+}
+
+// watchFile watches the file for changes and updates the ipset
+func watchFile(fileName, ipsetName string, knownCIDRs *sync.Map) {
+	var lastModTime time.Time
+
+	for {
+		// Check the file's last modification time
+		info, err := os.Stat(fileName)
+		if err != nil {
+			log.Printf("Error checking file %s: %v\n", fileName, err)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		// If the file has been modified since the last check, process it
+		if info.ModTime().After(lastModTime) {
+			log.Println("File has changed. Processing...")
+			if err := processCIDRs(fileName, ipsetName, knownCIDRs); err != nil {
+				log.Printf("Error processing file: %v\n", err)
+			} else {
+				lastModTime = info.ModTime()
+			}
+		}
+
+		// Wait for 10 seconds before checking again
+		time.Sleep(10 * time.Second)
+	}
+}
+
 func (s *Server) Start() {
+
+	if len(s.config.CIDR) > 0 {
+
+		checkIPSetAvailability()
+
+		fileName := s.config.CIDR
+		ipsetName := "allowedcidr"
+		knownCIDRs := &sync.Map{}
+
+		// Ensure the ipset exists
+		if err := ensureIPSetExists(ipsetName); err != nil {
+			log.Fatalf("Failed to ensure ipset exists: %v", err)
+		}
+
+		// Initialize known CIDRs from the file on startup
+		log.Println("Initializing known CIDRs...")
+		if err := processCIDRs(fileName, ipsetName, knownCIDRs); err != nil {
+			log.Fatalf("Failed to initialize CIDRs: %v", err)
+		}
+
+		// Start watching the file for changes
+		log.Println("Watching file for changes...")
+		go watchFile(fileName, ipsetName, knownCIDRs)
+	}
+
 	// for pprof and debugging
 	if s.config.PPROF {
 		go func() {

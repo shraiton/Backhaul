@@ -38,6 +38,7 @@ type ServerConfig struct {
 	Heartbeat        int           `toml:"heartbeat"`
 	MuxCon           int           `toml:"mux_con"`
 	AcceptUDP        bool          `toml:"accept_udp"`
+	CIDR             string        `toml:"cidr"`
 }
 
 // ClientConfig represents the configuration for the client.
