@@ -15,8 +15,8 @@ import (
 	"github.com/xtaci/smux"
 )
 
-type TcpMuxTransport struct {
-	config          *TcpMuxConfig
+type TcpUMuxTransport struct {
+	config          *TcpUMuxConfig
 	smuxConfig      *smux.Config
 	parentctx       context.Context
 	ctx             context.Context
@@ -30,7 +30,7 @@ type TcpMuxTransport struct {
 	controlFlow     chan struct{}
 }
 
-type TcpMuxConfig struct {
+type TcpUMuxConfig struct {
 	RemoteAddr       string
 	Token            string
 	SnifferLog       string
@@ -50,12 +50,12 @@ type TcpMuxConfig struct {
 	Travor           string
 }
 
-func NewMuxClient(parentCtx context.Context, config *TcpMuxConfig, logger *logrus.Logger) *TcpMuxTransport {
+func NewUMuxClient(parentCtx context.Context, config *TcpUMuxConfig, logger *logrus.Logger) *TcpUMuxTransport {
 	// Create a derived context from the parent context
 	ctx, cancel := context.WithCancel(parentCtx)
 
 	// Initialize the TcpTransport struct
-	client := &TcpMuxTransport{
+	client := &TcpUMuxTransport{
 		smuxConfig: &smux.Config{
 			Version:           config.MuxVersion,
 			KeepAliveInterval: 20 * time.Second,
@@ -79,7 +79,7 @@ func NewMuxClient(parentCtx context.Context, config *TcpMuxConfig, logger *logru
 	return client
 }
 
-func (c *TcpMuxTransport) Start() {
+func (c *TcpUMuxTransport) Start() {
 	if c.config.WebPort > 0 {
 		go c.usageMonitor.Monitor()
 	}
@@ -89,7 +89,7 @@ func (c *TcpMuxTransport) Start() {
 	go c.channelDialer()
 }
 
-func (c *TcpMuxTransport) Restart() {
+func (c *TcpUMuxTransport) Restart() {
 	if !c.restartMutex.TryLock() {
 		c.logger.Warn("client is already restarting")
 		return
@@ -132,7 +132,7 @@ func (c *TcpMuxTransport) Restart() {
 
 }
 
-func (c *TcpMuxTransport) channelDialer() {
+func (c *TcpUMuxTransport) channelDialer() {
 	c.logger.Info("attempting to establish a new tcpmux control channel connection...")
 
 	for {
@@ -197,7 +197,7 @@ func (c *TcpMuxTransport) channelDialer() {
 
 }
 
-func (c *TcpMuxTransport) poolMaintainer() {
+func (c *TcpUMuxTransport) poolMaintainer() {
 	for i := 0; i < c.config.ConnPoolSize; i++ { //initial pool filling
 		go c.tunnelDialer()
 	}
@@ -262,7 +262,7 @@ func (c *TcpMuxTransport) poolMaintainer() {
 
 }
 
-func (c *TcpMuxTransport) channelHandler() {
+func (c *TcpUMuxTransport) channelHandler() {
 	msgChan := make(chan byte, 1000)
 
 	// Goroutine to handle the blocking ReceiveBinaryString
@@ -323,7 +323,7 @@ func (c *TcpMuxTransport) channelHandler() {
 	}
 }
 
-func (c *TcpMuxTransport) tunnelDialer() {
+func (c *TcpUMuxTransport) tunnelDialer() {
 	c.logger.Debugf("initiating new tunnel connection to address %s", c.config.RemoteAddr)
 
 	// Dial to the tunnel server
@@ -341,7 +341,7 @@ func (c *TcpMuxTransport) tunnelDialer() {
 	c.handleSession(tunnelConn)
 }
 
-func (c *TcpMuxTransport) handleSession(tunnelConn net.Conn) {
+func (c *TcpUMuxTransport) handleSession(tunnelConn net.Conn) {
 	defer func() {
 		atomic.AddInt32(&c.poolConnections, -1)
 	}()
@@ -377,7 +377,7 @@ func (c *TcpMuxTransport) handleSession(tunnelConn net.Conn) {
 	}
 }
 
-func (c *TcpMuxTransport) localDialer(stream *smux.Stream, remoteAddr string) {
+func (c *TcpUMuxTransport) localDialer(stream *smux.Stream, remoteAddr string) {
 	// Extract the port from the received address
 	port, resolvedAddr, err := ResolveRemoteAddr(remoteAddr)
 	if err != nil {

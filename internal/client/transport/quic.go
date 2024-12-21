@@ -47,7 +47,7 @@ type QuicConfig struct {
 	MaxStreamBuffer  int
 	ConnectionPool   int
 	WebPort          int
-	AggressivePool bool
+	AggressivePool   bool
 }
 
 func NewQuicClient(parentCtx context.Context, config *QuicConfig, logger *logrus.Logger) *QuicTransport {
@@ -325,10 +325,8 @@ func (c *QuicTransport) handleTunnelConn(session quic.Connection) {
 			remoteAddr, err := utils.ReceiveBinaryString(stream)
 			if err != nil {
 				c.logger.Errorf("unable to get port from stream connection %s: %v", session.RemoteAddr().String(), err)
-				if err := session.CloseWithError(1, "recieve port error"); err != nil {
-					c.logger.Errorf("failed to close mux stream: %v", err)
-				}
-				return
+				stream.Close()
+				continue
 			}
 
 			go c.localDialer(stream, remoteAddr)

@@ -225,6 +225,28 @@ func (s *Server) Start() {
 
 		tcpMuxServer := transport.NewTcpMuxServer(s.ctx, tcpMuxConfig, s.logger)
 		go tcpMuxServer.Start()
+	} else if s.config.Transport == config.TCPUMUX {
+		tcpUMuxConfig := &transport.TcpUMuxConfig{
+			BindAddr:         s.config.BindAddr,
+			Nodelay:          s.config.Nodelay,
+			KeepAlive:        time.Duration(s.config.Keepalive) * time.Second,
+			Heartbeat:        time.Duration(s.config.Heartbeat) * time.Second,
+			Token:            s.config.Token,
+			ChannelSize:      s.config.ChannelSize,
+			Ports:            s.config.Ports,
+			MuxCon:           s.config.MuxCon,
+			MuxVersion:       s.config.MuxVersion,
+			MaxFrameSize:     s.config.MaxFrameSize,
+			MaxReceiveBuffer: s.config.MaxReceiveBuffer,
+			MaxStreamBuffer:  s.config.MaxStreamBuffer,
+			Sniffer:          s.config.Sniffer,
+			WebPort:          s.config.WebPort,
+			SnifferLog:       s.config.SnifferLog,
+			Matchers:         s.config.Matchers,
+		}
+
+		tcpMuxServer := transport.NewTcpMuxServer(s.ctx, tcpUMuxConfig, s.logger)
+		go tcpMuxServer.Start()
 
 	} else if s.config.Transport == config.WS || s.config.Transport == config.WSS {
 		wsConfig := &transport.WsConfig{

@@ -4,14 +4,15 @@ package config
 type TransportType string
 
 const (
-	TCP    TransportType = "tcp"
-	TCPMUX TransportType = "tcpmux"
-	WS     TransportType = "ws"
-	WSS    TransportType = "wss"
-	WSMUX  TransportType = "wsmux"
-	WSSMUX TransportType = "wssmux"
-	QUIC   TransportType = "quic"
-	UDP    TransportType = "udp"
+	TCP     TransportType = "tcp"
+	TCPMUX  TransportType = "tcpmux"
+	TCPUMUX TransportType = "tcpumux"
+	WS      TransportType = "ws"
+	WSS     TransportType = "wss"
+	WSMUX   TransportType = "wsmux"
+	WSSMUX  TransportType = "wssmux"
+	QUIC    TransportType = "quic"
+	UDP     TransportType = "udp"
 )
 
 // ServerConfig represents the configuration for the server.
