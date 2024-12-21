@@ -421,6 +421,7 @@ func (s *TcpUMuxTransport) acceptTunnelConn(listener net.Listener) {
 
 			select {
 			case s.tunnelChannel <- session: // ok
+				s.logger.Debugf("incoming session put into tunnel channel")
 			default:
 				s.logger.Warnf("tunnel listener channel is full, discarding TCP connection from %s", conn.LocalAddr().String())
 				session.Close()
@@ -649,28 +650,33 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 				continue
 			}
 
+			s.logger.Debug("user ip is:", user_ip)
+
 			var ThisIPuserTracker *UserTracker
-			if _, exists := s.UsersMap[user_ip]; !exists {
+			ThisIPuserTracker, exists := s.UsersMap[user_ip]
+			if !exists {
+				s.logger.Debugf("no UsersMap Exists creating new one")
 				// Initialize a new User struct
 				ThisIPuserTracker = NewUserTracker(user_ip)
 				s.UsersMapMutex.Lock()
 				s.UsersMap[user_ip] = ThisIPuserTracker
 				s.UsersMapMutex.Unlock()
-			} else {
-				s.UsersMapMutex.Lock()
-				ThisIPuserTracker = s.UsersMap[user_ip]
-				s.UsersMapMutex.Unlock()
+				s.logger.Debugf("we created new usermap")
 			}
 
-			if ThisIPuserTracker.userSession == nil || ThisIPuserTracker.userSession.IsClosed() {
+			if ThisIPuserTracker.userSession == nil {
 				s.logger.Debug("userSession does not exists or it's closed, we should put new one")
 
+				s.logger.Debugf("requesting new connection")
 				s.RequestNewConnection()
+				s.logger.Debugf("finished requesting for new connection")
 
 				select {
 				case <-s.ctx.Done():
+					s.logger.Debugf("every thing is closed, s.ctx is done")
 					return
 				case ThisIPuserTracker.userSession = <-s.tunnelChannel:
+					s.logger.Debugf("Nice, this user ip", ThisIPuserTracker.IP, "got a tunnel channel for itself")
 				}
 
 				select {
@@ -693,7 +699,6 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 
 				default: // channel is full, discard the connection
 					s.logger.Warnf("local listener channel is full, discarding TCP connection from %s", tcpConn.LocalAddr().String())
-					conn.Close()
 				}
 
 			}
