@@ -746,6 +746,7 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 				continue
 			}
 
+			s.logger.Debugf("we want to open an string")
 			stream, err := ut.userSession.OpenStream()
 			if err != nil {
 				s.logger.Errorf("failed to open stream: %v", err)
@@ -762,6 +763,7 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 
 				continue
 			}
+			s.logger.Debugf("an stream is created")
 
 			// Send the target port over the tunnel connection
 			if err := utils.SendBinaryString(stream, incomingConn.remoteAddr); err != nil {
@@ -777,6 +779,8 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 
 				continue
 			}
+
+			s.logger.Debugf("we sent the remote addr to stream ")
 
 			s.logger.Debugf("HANDLING DATA IS NOW HERE! HOOOOOOOOOOOOOOOOOOOOOOOOOOORAY")
 
