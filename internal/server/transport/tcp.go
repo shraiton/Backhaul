@@ -361,6 +361,8 @@ func (s *TcpTransport) ParseMatchers() {
 		matchers = strings.TrimSpace(parts[1])
 
 		s.PortAndMatchers[portint] = strings.Split(matchers, ",")
+
+		s.logger.Debug("we parse %w for matchers %w", portint, matchers)
 	}
 }
 
@@ -523,16 +525,21 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 		return
 	}
 
+	s.logger.Debug("Listener Port IS: %w", listenerPort)
+
 	var matchersListForThisPort []string
 	var matchers_exists bool
 	var exists bool
 
 	if matchersListForThisPort, exists = s.PortAndMatchers[listenerPort]; exists {
 		matchers_exists = true
+		s.logger.Debug("matchers list for port %w exists", listenerPort)
 	} else {
 		matchers_exists = false
+		s.logger.Debug("matchers list for port %w does not exists", listenerPort)
 	}
 
+	var conn net.Conn
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -540,7 +547,7 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 
 		default:
 			s.logger.Debugf("waiting for accept incoming connection on %s", listener.Addr().String())
-			conn, err := listener.Accept()
+			conn, err = listener.Accept()
 			if err != nil {
 				s.logger.Debugf("failed to accept connection on %s: %v", listener.Addr().String(), err)
 				continue
@@ -561,6 +568,8 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 			var bfconn *BufferedConn
 			if matchers_exists {
 
+				s.logger.Debug("matcher exists for our port %w")
+
 				bfconn, err = NewBufferedConn(conn, 4096)
 				if err != nil {
 					s.logger.Warnf("error wrapping incoming conn into buffered connection %s CLOSING CONNECTION", err.Error())
@@ -574,6 +583,8 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 					conn.Close()
 					continue
 				}
+
+				conn = bfconn
 
 			}
 
