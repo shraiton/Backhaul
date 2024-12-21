@@ -738,6 +738,8 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 				return
 			}
 
+			s.logger.Debugf("new user local channel coming that we want to work on")
+
 			if time.Now().UnixMilli()-incomingConn.timeCreated > 3000 { // 3000ms
 				s.logger.Debugf("timeouted local connection: %d ms", time.Now().UnixMilli()-incomingConn.timeCreated)
 				incomingConn.conn.Close()
@@ -775,6 +777,8 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 
 				continue
 			}
+
+			s.logger.Debugf("HANDLING DATA IS NOW HERE! HOOOOOOOOOOOOOOOOOOOOOOOOOOORAY")
 
 			// Handle data exchange between connections
 			go func() {
