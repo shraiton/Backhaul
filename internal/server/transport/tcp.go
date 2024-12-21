@@ -579,7 +579,7 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 
 				connString := string(bfconn.buffer)
 				if !containsAny(connString, matchersListForThisPort) {
-					s.logger.Debugf("connection coming from %s does not contain matchers we need", conn.RemoteAddr().String())
+					s.logger.Debugf("connection coming from %s does not contain matchers we need %s", conn.RemoteAddr().String(), connString)
 					conn.Close()
 					continue
 				}
