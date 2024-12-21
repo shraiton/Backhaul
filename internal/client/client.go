@@ -85,6 +85,28 @@ func (c *Client) Start() {
 		}
 		tcpMuxClient := transport.NewMuxClient(c.ctx, tcpMuxConfig, c.logger)
 		go tcpMuxClient.Start()
+
+	} else if c.config.Transport == config.TCPMUX {
+		tcpUMuxConfig := &transport.TcpUMuxConfig{
+			RemoteAddr:       c.config.RemoteAddr,
+			Nodelay:          c.config.Nodelay,
+			KeepAlive:        time.Duration(c.config.Keepalive) * time.Second,
+			RetryInterval:    time.Duration(c.config.RetryInterval) * time.Second,
+			DialTimeOut:      time.Duration(c.config.DialTimeout) * time.Second,
+			ConnPoolSize:     c.config.ConnectionPool,
+			Token:            c.config.Token,
+			MuxVersion:       c.config.MuxVersion,
+			MaxFrameSize:     c.config.MaxFrameSize,
+			MaxReceiveBuffer: c.config.MaxReceiveBuffer,
+			MaxStreamBuffer:  c.config.MaxStreamBuffer,
+			Sniffer:          c.config.Sniffer,
+			WebPort:          c.config.WebPort,
+			SnifferLog:       c.config.SnifferLog,
+			AggressivePool:   c.config.AggressivePool,
+			Travor:           c.config.Travor,
+		}
+		tcpUMuxClient := transport.NewUMuxClient(c.ctx, tcpUMuxConfig, c.logger)
+		go tcpUMuxClient.Start()
 	} else if c.config.Transport == config.TCPUMUX {
 		tcpUMuxConfig := &transport.TcpUMuxConfig{
 			RemoteAddr:       c.config.RemoteAddr,
