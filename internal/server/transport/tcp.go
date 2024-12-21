@@ -1,9 +1,7 @@
 package transport
 
 import (
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"runtime"
@@ -11,9 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/hpack"
 
 	"github.com/musix/backhaul/internal/utils"
 	"github.com/musix/backhaul/internal/web"
@@ -522,58 +517,6 @@ func containsAny(target string, substrings []string) bool {
 	return false
 }
 
-// HTTP/2 Magic Code (Preface)
-const http2Magic = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-
-// ExtractHTTP2Headers matches the HTTP/2 magic code and extracts the first header frame
-func ExtractHTTP2Headers(data []byte) (map[string]string, error) {
-	// Step 1: Ensure data length is sufficient for the magic code
-	if len(data) < len(http2Magic) {
-		return nil, errors.New("data too short to contain HTTP/2 connection preface")
-	}
-
-	// Step 2: Match HTTP/2 Magic Code
-	if string(data[:len(http2Magic)]) != http2Magic {
-		return nil, errors.New("not an HTTP/2 connection preface")
-	}
-
-	// Step 3: Decode Frames
-	reader := bytes.NewReader(data[len(http2Magic):])
-	framer := http2.NewFramer(nil, reader)
-
-	headers := make(map[string]string)
-	decoder := hpack.NewDecoder(4096, func(headerField hpack.HeaderField) {
-		headers[headerField.Name] = headerField.Value
-	})
-
-	for {
-		frame, err := framer.ReadFrame()
-		if err != nil {
-			return nil, fmt.Errorf("error reading frame: %w", err)
-		}
-
-		// Step 4: Handle Header Frames
-		if headerFrame, ok := frame.(*http2.HeadersFrame); ok {
-			headerBlock := headerFrame.HeaderBlockFragment()
-
-			// Decode the header block fragment
-			_, err := decoder.Write(headerBlock)
-			if err != nil {
-				return nil, fmt.Errorf("error decoding headers: %w", err)
-			}
-
-			return headers, nil
-		}
-
-		// Break if other frames (e.g., DATA) are encountered
-		if _, ok := frame.(*http2.DataFrame); ok {
-			break
-		}
-	}
-
-	return nil, errors.New("no header frame found")
-}
-
 func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string) {
 
 	listenerPort, err := getPort(listener.Addr().String())
@@ -633,13 +576,6 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 					conn.Close()
 					continue
 				}
-
-				h2headers, err := ExtractHTTP2Headers(bfconn.buffer)
-				if err != nil {
-					fmt.Println("error extracting h2headers", err.Error())
-				}
-
-				fmt.Println("H2 HEADERS ARE HERE:", h2headers)
 
 				connString := string(bfconn.buffer)
 				if !containsAny(connString, matchersListForThisPort) {
