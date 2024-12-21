@@ -245,8 +245,8 @@ func (s *Server) Start() {
 			Matchers:         s.config.Matchers,
 		}
 
-		tcpMuxServer := transport.NewTcpMuxServer(s.ctx, tcpUMuxConfig, s.logger)
-		go tcpMuxServer.Start()
+		tcpUMuxServer := transport.NewTcpUMuxServer(s.ctx, tcpUMuxConfig, s.logger)
+		go tcpUMuxServer.Start()
 
 	} else if s.config.Transport == config.WS || s.config.Transport == config.WSS {
 		wsConfig := &transport.WsConfig{
