@@ -627,7 +627,7 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 
 				s.logger.Debug("matcher exists for our port %w")
 
-				bfconn, err = NewBufferedConn(conn, 4096)
+				bfconn, err = NewBufferedConn(conn, 16384)
 				if err != nil {
 					s.logger.Warnf("error wrapping incoming conn into buffered connection %s CLOSING CONNECTION", err.Error())
 					conn.Close()
