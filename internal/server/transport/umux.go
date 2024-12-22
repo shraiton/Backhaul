@@ -75,10 +75,10 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 					s.logger.Debugf("closed usermap for ip %s", ut.IP)
 					return
 				}
-			} else if ut.userSession != nil && ut.userSession.NumStreams() > 0 {
-				timeNum = 0
-				s.logger.Debugf("because we had streams more than 0 we zeroed timenum")
-				continue
+				if ut.userSession != nil && ut.userSession.NumStreams() > 0 {
+					timeNum = 0
+					s.logger.Debugf("because we had streams more than 0 we zeroed timenum")
+				}
 			}
 		}
 	}
