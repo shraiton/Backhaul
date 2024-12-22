@@ -60,7 +60,6 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 
 		case <-ticker.C:
 			s.logger.Debugf("user %s has session:", ut.IP, ut.userSession.NumStreams())
-
 			if ut.userSession != nil && ut.userSession.NumStreams() == 0 {
 				timeNum += 1
 				s.logger.Debugf("there is no streams for more than", timeNum*5)
@@ -76,6 +75,10 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 					s.logger.Debugf("closed usermap for ip %s", ut.IP)
 					return
 				}
+			} else if ut.userSession != nil && ut.userSession.NumStreams() > 0 {
+				timeNum = 0
+				s.logger.Debugf("because we had streams more than 0 we zeroed timenum")
+				continue
 			}
 		}
 	}
