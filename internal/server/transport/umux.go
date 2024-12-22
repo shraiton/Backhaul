@@ -662,7 +662,9 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 			s.logger.Debug("user ip is:", user_ip)
 
 			var ThisIPuserTracker *UserTracker
+			s.UsersMapMutex.Lock()
 			ThisIPuserTracker, exists := s.UsersMap[user_ip]
+			s.UsersMapMutex.Unlock()
 			if !exists {
 				s.logger.Debugf("no UsersMap Exists creating new one")
 				// Initialize a new User struct
@@ -673,10 +675,10 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 				s.logger.Debugf("we created new usermap")
 			}
 
-			if ThisIPuserTracker.userSession == nil {
+			if ThisIPuserTracker.userSession == nil || ThisIPuserTracker.userSession.IsClosed() {
 				s.logger.Debug("userSession does not exists or it's closed, we should put new one")
 
-				s.logger.Debugf("requesting new connection")
+				s.logger.Debugf("requesting new connection- >>>>>>>>>>>>>>>>>>>> DID WE LOCKED IN HERE?")
 				s.RequestNewConnection()
 				s.logger.Debugf("finished requesting for new connection")
 			}
@@ -721,10 +723,11 @@ func (s *TcpUMuxTransport) RequestNewConnection() {
 	for {
 		select {
 		case s.reqNewConnChan <- struct{}{}:
+			s.logger.Warn("we requested new channel")
 			return
 		default:
 			s.logger.Warn("failed to request new connection. channel is full")
-			time.Sleep(time.Duration(2 * time.Second))
+			time.Sleep(time.Duration(1 * time.Second))
 		}
 	}
 }
