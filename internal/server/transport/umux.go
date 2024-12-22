@@ -583,6 +583,10 @@ func ExtractIP(conn net.Conn) (string, error) {
 
 func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr string) {
 
+	defer func() {
+		s.logger.Warnf("It's important to say acceptLocalConn is Closed")
+	}()
+
 	listenerPort, err := getPort(listener.Addr().String())
 	if err != nil {
 		s.logger.Errorf("error listener because we cannot extract the listener port %s", err)
