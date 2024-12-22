@@ -604,7 +604,7 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 	}
 
 	var conn net.Conn
-	var ThisIPuserTracker *UserTracker
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -620,99 +620,104 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 				continue
 			}
 
-			// discard any non-tcp connection
-			//tcpConn, ok := conn.(*net.TCPConn)
-			//if !ok {
-			//	s.logger.Warnf("disarded non-TCP connection from %s", conn.RemoteAddr().String())
-			//	conn.Close()
-			//	continue
-			//}
-
-			var bfconn *BufferedConn
-			if matchers_exists {
-
-				bfconn, err = NewBufferedConn(conn, 4096)
-				if err != nil {
-					s.logger.Warnf("error wrapping incoming conn into buffered connection %s CLOSING CONNECTION", err.Error())
-					conn.Close()
-					continue
-				}
-
-				connString := string(bfconn.buffer)
-				if !containsAny(connString, matchersListForThisPort) {
-					s.logger.Debugf("connection coming from %s does not contain matchers we need", conn.RemoteAddr().String())
-					conn.Close()
-					continue
-				}
-
-				conn = bfconn
-
-			}
-
-			user_ip, err := ExtractIP(conn)
-			if err != nil {
-				s.logger.Debugf("error extracting user ip %s", err.Error())
-				conn.Close()
-				continue
-			}
-
-			s.logger.Debug("user ip is:", user_ip)
-
-			s.UsersMapMutex.Lock()
-			ThisIPuserTracker, exists = s.UsersMap[user_ip]
-			s.UsersMapMutex.Unlock()
-			if !exists {
-				s.logger.Debugf("no UsersMap Exists creating new one")
-				// Initialize a new User struct
-				ThisIPuserTracker = NewUserTracker(user_ip)
-				s.UsersMapMutex.Lock()
-				s.UsersMap[user_ip] = ThisIPuserTracker
-				s.UsersMapMutex.Unlock()
-				s.logger.Debugf("we created new usermap")
-			}
-
-			if ThisIPuserTracker.userSession == nil || ThisIPuserTracker.userSession.IsClosed() {
-				s.logger.Debug("userSession does not exists or it's closed, we should put new one")
-
-				s.logger.Debugf("requesting new connection- >>>>>>>>>>>>>>>>>>>> DID WE LOCKED IN HERE?")
-				s.RequestNewConnection()
-				s.logger.Debugf("finished requesting for new connection")
-			}
-
-			if (ThisIPuserTracker.userSession == nil) || (ThisIPuserTracker.userSession.IsClosed()) {
-				select {
-				case <-s.ctx.Done():
-					s.logger.Debugf("every thing is closed, s.ctx is done")
-					return
-				case ThisIPuserTracker.userSession = <-s.tunnelChannel:
-					//this seems blocking if there is no tunnel channel available
-					s.logger.Debugf("Nice, this user ip", ThisIPuserTracker.IP, "got a tunnel channel for itself")
-				}
-			}
-
-			select {
-			case ThisIPuserTracker.userLocalChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
-				//s.localChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
-				s.logger.Debugf("accepted incoming TCP connection from %s", conn.RemoteAddr().String())
-
-				//انتظار میره که بر اساس لوکال کان استریم های جدیدی ایجاد بشه و کپی بین یوزر و سرور اتفاق بیفته
-				ThisIPuserTracker.onceHandleUser.Do(func() {
-					go func() {
-						ThisIPuserTracker.handleUserSession(s)
-					}()
-				})
-
-				ThisIPuserTracker.onceTrackSession.Do(func() {
-					go func() {
-						ThisIPuserTracker.TrackSessionStreams(s)
-					}()
-				})
-
-			default: // channel is full, discard the connection
-				s.logger.Warnf("local listener channel is full, discarding TCP connection from %s", conn.LocalAddr().String())
-			}
+			go AcceptLocalConnProcess(conn, s, matchers_exists, matchersListForThisPort, remoteAddr)
 
 		}
+	}
+
+}
+
+func AcceptLocalConnProcess(conn net.Conn, s *TcpUMuxTransport, matchers_exists bool, matchersListForThisPort []string, remoteAddr string) {
+	//we are using this to prevent incoming connection from being blocked for processing that we may have
+
+	var ThisIPuserTracker *UserTracker
+	var err error
+	var bfconn *BufferedConn
+	var exists bool
+
+	if matchers_exists {
+
+		bfconn, err = NewBufferedConn(conn, 4096)
+		if err != nil {
+			s.logger.Warnf("error wrapping incoming conn into buffered connection %s CLOSING CONNECTION", err.Error())
+			conn.Close()
+			return
+			//continue
+		}
+
+		connString := string(bfconn.buffer)
+		if !containsAny(connString, matchersListForThisPort) {
+			s.logger.Debugf("connection coming from %s does not contain matchers we need", conn.RemoteAddr().String())
+			conn.Close()
+			return
+			//continue
+		}
+
+		conn = bfconn
+	}
+
+	user_ip, err := ExtractIP(conn)
+	if err != nil {
+		s.logger.Debugf("error extracting user ip %s", err.Error())
+		conn.Close()
+		return
+		//continue
+	}
+
+	s.logger.Debug("user ip is:", user_ip)
+
+	s.UsersMapMutex.Lock()
+	ThisIPuserTracker, exists = s.UsersMap[user_ip]
+	s.UsersMapMutex.Unlock()
+	if !exists {
+		s.logger.Debugf("no UsersMap Exists creating new one")
+		// Initialize a new User struct
+		ThisIPuserTracker = NewUserTracker(user_ip)
+		s.UsersMapMutex.Lock()
+		s.UsersMap[user_ip] = ThisIPuserTracker
+		s.UsersMapMutex.Unlock()
+		s.logger.Debugf("we created new usermap")
+	}
+
+	if ThisIPuserTracker.userSession == nil || ThisIPuserTracker.userSession.IsClosed() {
+		s.logger.Debug("userSession does not exists or it's closed, we should put new one")
+
+		s.logger.Debugf("requesting new connection- >>>>>>>>>>>>>>>>>>>> DID WE LOCKED IN HERE?")
+		s.RequestNewConnection()
+		s.logger.Debugf("finished requesting for new connection")
+	}
+
+	if (ThisIPuserTracker.userSession == nil) || (ThisIPuserTracker.userSession.IsClosed()) {
+		select {
+		case <-s.ctx.Done():
+			s.logger.Debugf("every thing is closed, s.ctx is done")
+			return
+		case ThisIPuserTracker.userSession = <-s.tunnelChannel:
+			//this seems blocking if there is no tunnel channel available
+			s.logger.Debugf("Nice, this user ip", ThisIPuserTracker.IP, "got a tunnel channel for itself")
+		}
+	}
+
+	select {
+	case ThisIPuserTracker.userLocalChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
+		//s.localChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
+		s.logger.Debugf("accepted incoming TCP connection from %s", conn.RemoteAddr().String())
+
+		//انتظار میره که بر اساس لوکال کان استریم های جدیدی ایجاد بشه و کپی بین یوزر و سرور اتفاق بیفته
+		ThisIPuserTracker.onceHandleUser.Do(func() {
+			go func() {
+				ThisIPuserTracker.handleUserSession(s)
+			}()
+		})
+
+		ThisIPuserTracker.onceTrackSession.Do(func() {
+			go func() {
+				ThisIPuserTracker.TrackSessionStreams(s)
+			}()
+		})
+
+	default: // channel is full, discard the connection
+		s.logger.Warnf("local listener channel is full, discarding TCP connection from %s", conn.LocalAddr().String())
 	}
 
 }
