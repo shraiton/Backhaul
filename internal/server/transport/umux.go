@@ -59,7 +59,8 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 			return
 
 		case <-ticker.C:
-			s.logger.Debugf("user %s has session:", ut.IP, ut.userSession.NumStreams())
+			s.logger.Debugf("user %s has session:", ut.IP, ut.userSession.NumStreams(), "which is closed?:", ut.userSession.IsClosed())
+
 			if ut.userSession != nil && ut.userSession.NumStreams() == 0 {
 				timeNum += 1
 				s.logger.Debugf("there is no streams for more than", timeNum*5)
@@ -675,41 +676,41 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 				s.logger.Debugf("requesting new connection")
 				s.RequestNewConnection()
 				s.logger.Debugf("finished requesting for new connection")
-
-				select {
-				case <-s.ctx.Done():
-					s.logger.Debugf("every thing is closed, s.ctx is done")
-					return
-				case ThisIPuserTracker.userSession = <-s.tunnelChannel:
-					s.logger.Debugf("Nice, this user ip", ThisIPuserTracker.IP, "got a tunnel channel for itself")
-				}
-
-				select {
-				case ThisIPuserTracker.userLocalChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
-					//s.localChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
-					s.logger.Debugf("accepted incoming TCP connection from %s", tcpConn.RemoteAddr().String())
-
-					//انتظار میره که بر اساس لوکال کان استریم های جدیدی ایجاد بشه و کپی بین یوزر و سرور اتفاق بیفته
-					ThisIPuserTracker.onceHandleUser.Do(func() {
-						go func() {
-							ThisIPuserTracker.handleUserSession(s)
-						}()
-					})
-
-					ThisIPuserTracker.onceTrackSession.Do(func() {
-						go func() {
-							ThisIPuserTracker.TrackSessionStreams(s)
-						}()
-					})
-
-				default: // channel is full, discard the connection
-					s.logger.Warnf("local listener channel is full, discarding TCP connection from %s", tcpConn.LocalAddr().String())
-				}
-
 			}
-		}
 
+			select {
+			case <-s.ctx.Done():
+				s.logger.Debugf("every thing is closed, s.ctx is done")
+				return
+			case ThisIPuserTracker.userSession = <-s.tunnelChannel:
+				s.logger.Debugf("Nice, this user ip", ThisIPuserTracker.IP, "got a tunnel channel for itself")
+			}
+
+			select {
+			case ThisIPuserTracker.userLocalChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
+				//s.localChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
+				s.logger.Debugf("accepted incoming TCP connection from %s", tcpConn.RemoteAddr().String())
+
+				//انتظار میره که بر اساس لوکال کان استریم های جدیدی ایجاد بشه و کپی بین یوزر و سرور اتفاق بیفته
+				ThisIPuserTracker.onceHandleUser.Do(func() {
+					go func() {
+						ThisIPuserTracker.handleUserSession(s)
+					}()
+				})
+
+				ThisIPuserTracker.onceTrackSession.Do(func() {
+					go func() {
+						ThisIPuserTracker.TrackSessionStreams(s)
+					}()
+				})
+
+			default: // channel is full, discard the connection
+				s.logger.Warnf("local listener channel is full, discarding TCP connection from %s", tcpConn.LocalAddr().String())
+			}
+
+		}
 	}
+
 }
 
 func (s *TcpUMuxTransport) RequestNewConnection() {
