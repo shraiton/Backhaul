@@ -767,8 +767,6 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 				s.logger.Errorf("failed to open stream: %v", err)
 				ut.userLocalChannel <- incomingConn
 
-				stream.Close()
-
 				if ut.userSession.IsClosed() {
 					//اگر بسته بود یکی جدید میسازیم
 					go s.RequestNewConnection()
