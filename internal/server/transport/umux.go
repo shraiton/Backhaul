@@ -386,13 +386,13 @@ func (s *TcpUMuxTransport) acceptTunnelConn(listener net.Listener) {
 			//}
 
 			// trying to set tcpnodelay
-			if !s.config.Nodelay {
-				if err := tcpConn.SetNoDelay(s.config.Nodelay); err != nil {
-					s.logger.Warnf("failed to set TCP_NODELAY for %s: %v", tcpConn.RemoteAddr().String(), err)
-				} else {
-					s.logger.Tracef("TCP_NODELAY disabled for %s", tcpConn.RemoteAddr().String())
-				}
-			}
+			//if !s.config.Nodelay {
+			//	if err := tcpConn.SetNoDelay(s.config.Nodelay); err != nil {
+			//		s.logger.Warnf("failed to set TCP_NODELAY for %s: %v", tcpConn.RemoteAddr().String(), err)
+			//	} else {
+			//		s.logger.Tracef("TCP_NODELAY disabled for %s", tcpConn.RemoteAddr().String())
+			//	}
+			//}
 
 			// Set keep-alive settings
 			if err := tcpConn.SetKeepAlive(true); err != nil {
@@ -603,6 +603,7 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 		matchers_exists = false
 	}
 
+	var conn net.Conn
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -611,7 +612,7 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 
 		default:
 			s.logger.Debugf("Listener is waiting to accept connection")
-			conn, err := listener.Accept()
+			conn, err = listener.Accept()
 			s.logger.Debugf("Listener Accepted The Connection")
 			if err != nil {
 				s.logger.Debugf("failed to accept connection on %s: %v", listener.Addr().String(), err)
@@ -645,15 +646,6 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 
 				conn = bfconn
 
-			}
-
-			// trying to disable tcpnodelay
-			if !s.config.Nodelay {
-				if err := tcpConn.SetNoDelay(s.config.Nodelay); err != nil {
-					s.logger.Warnf("failed to set TCP_NODELAY for %s: %v", tcpConn.RemoteAddr().String(), err)
-				} else {
-					s.logger.Tracef("TCP_NODELAY disabled for %s", tcpConn.RemoteAddr().String())
-				}
 			}
 
 			//اینجا باید ایپی یوزر رو داشته باشیم چک کنیم ببینیم که اصلا یوزر
@@ -728,16 +720,16 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 
 func (s *TcpUMuxTransport) RequestNewConnection() {
 	//this is blocking until we can create new connection
-	for {
-		select {
-		case s.reqNewConnChan <- struct{}{}:
-			s.logger.Warn("we requested new channel")
-			return
-		default:
-			s.logger.Warn("failed to request new connection. channel is full")
-			time.Sleep(time.Duration(1 * time.Second))
-		}
+	//for {
+	select {
+	case s.reqNewConnChan <- struct{}{}:
+		s.logger.Warn("we requested new channel")
+		return
+	default:
+		s.logger.Warn("failed to request new connection. channel is full")
+		//time.Sleep(time.Duration(1 * time.Second))
 	}
+	//}
 }
 
 func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {

@@ -461,6 +461,7 @@ func (s *WsTransport) acceptLocalConn(listener net.Listener, remoteAddr string) 
 		matchers_exists = false
 	}
 
+	var conn net.Conn
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -468,7 +469,7 @@ func (s *WsTransport) acceptLocalConn(listener net.Listener, remoteAddr string) 
 
 		default:
 			s.logger.Debugf("waiting to accept incoming connection on %s", listener.Addr().String())
-			conn, err := listener.Accept()
+			conn, err = listener.Accept()
 			if err != nil {
 				s.logger.Debugf("failed to accept connection on %s: %v", listener.Addr().String(), err)
 				continue
@@ -498,6 +499,8 @@ func (s *WsTransport) acceptLocalConn(listener net.Listener, remoteAddr string) 
 					conn.Close()
 					continue
 				}
+
+				conn = bfconn
 
 			}
 
