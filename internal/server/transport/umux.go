@@ -550,7 +550,11 @@ func (s *TcpUMuxTransport) localListener(localAddr string, remoteAddr string) {
 		return
 	}
 
-	defer listener.Close()
+	defer func() {
+		s.logger.Warnf("LOCAL LISTENER GOT CLOSED!                -><<>>>-<>-")
+		listener.Close()
+
+	}()
 
 	s.logger.Infof("listener started successfully, listening on address: %s", listener.Addr().String())
 
@@ -784,8 +788,8 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 				s.logger.Errorf("failed to handle session: %v", err)
 				//ut.handleUserSessionError(&incomingConn)
 				ut.userLocalChannel <- incomingConn
-
 				stream.Close()
+
 				if ut.userSession.IsClosed() {
 					//اگر بسته بود یکی جدید میسازیم
 					go s.RequestNewConnection()
@@ -796,7 +800,6 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 			}
 
 			s.logger.Debugf("we sent the remote addr to stream ")
-
 			s.logger.Debugf("HANDLING DATA IS NOW HERE! HOOOOOOOOOOOOOOOOOOOOOOOOOOORAY")
 
 			// Handle data exchange between connections
