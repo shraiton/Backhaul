@@ -604,6 +604,7 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 	}
 
 	var conn net.Conn
+	var ThisIPuserTracker *UserTracker
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -648,10 +649,6 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 
 			}
 
-			//اینجا باید ایپی یوزر رو داشته باشیم چک کنیم ببینیم که اصلا یوزر
-			// دارای اینتری هست توی یوزرها یا نه اگر اینتری داشت
-			// لوکال چنل اون یوزر رو پر میکنیم مستقیم و نه لوکال چنل کلی رو
-
 			user_ip, err := ExtractIP(conn)
 			if err != nil {
 				s.logger.Debugf("error extracting user ip %s", err.Error())
@@ -661,9 +658,8 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 
 			s.logger.Debug("user ip is:", user_ip)
 
-			var ThisIPuserTracker *UserTracker
 			s.UsersMapMutex.Lock()
-			ThisIPuserTracker, exists := s.UsersMap[user_ip]
+			ThisIPuserTracker, exists = s.UsersMap[user_ip]
 			s.UsersMapMutex.Unlock()
 			if !exists {
 				s.logger.Debugf("no UsersMap Exists creating new one")
