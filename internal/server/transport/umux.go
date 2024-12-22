@@ -628,6 +628,8 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 					continue
 				}
 
+				conn = bfconn
+
 			}
 
 			// trying to disable tcpnodelay
