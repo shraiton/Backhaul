@@ -330,7 +330,7 @@ func (c *WsMuxTransport) handleSession(tunnelConn *websocket.Conn) {
 			stream, err := session.AcceptStream()
 			if err != nil {
 				c.logger.Debug("session is closed: ", err)
-				session.Close()
+				stream.Close()
 				return
 			}
 

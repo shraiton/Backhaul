@@ -84,7 +84,7 @@ func (c *TcpUMuxTransport) Start() {
 		go c.usageMonitor.Monitor()
 	}
 
-	c.config.TunnelStatus = "Disconnected (TCPMUX)"
+	c.config.TunnelStatus = "Disconnected (TCPuMUX)"
 
 	go c.channelDialer()
 }
@@ -133,7 +133,7 @@ func (c *TcpUMuxTransport) Restart() {
 }
 
 func (c *TcpUMuxTransport) channelDialer() {
-	c.logger.Info("attempting to establish a new tcpmux control channel connection...")
+	c.logger.Info("attempting to establish a new tcpumux control channel connection...")
 
 	for {
 		select {
@@ -180,7 +180,7 @@ func (c *TcpUMuxTransport) channelDialer() {
 				c.controlChannel = tunnelConn
 				c.logger.Info("control channel established successfully")
 
-				c.config.TunnelStatus = "Connected (TCPMux)"
+				c.config.TunnelStatus = "Connected (TCPuMux)"
 
 				go c.poolMaintainer()
 				go c.channelHandler()
@@ -361,7 +361,7 @@ func (c *TcpUMuxTransport) handleSession(tunnelConn net.Conn) {
 			stream, err := session.AcceptStream()
 			if err != nil {
 				c.logger.Trace("session is closed: ", err)
-				session.Close()
+				stream.Close()
 				return
 			}
 
