@@ -305,12 +305,12 @@ func (s *TcpTransport) acceptTunnelConn(listener net.Listener) {
 			}
 
 			//discard any non tcp connection
-			tcpConn, ok := conn.(*net.TCPConn)
-			if !ok {
-				s.logger.Warnf("disarded non-TCP tunnel connection from %s", conn.RemoteAddr().String())
-				conn.Close()
-				continue
-			}
+			//tcpConn, ok := conn.(*net.TCPConn)
+			//if !ok {
+			//	s.logger.Warnf("disarded non-TCP tunnel connection from %s", conn.RemoteAddr().String())
+			//	conn.Close()
+			//	continue
+			//}
 
 			// Drop all suspicious packets from other address rather than server
 			//if s.controlChannel != nil && s.controlChannel.RemoteAddr().(*net.TCPAddr).IP.String() != tcpConn.RemoteAddr().(*net.TCPAddr).IP.String() {
@@ -320,23 +320,23 @@ func (s *TcpTransport) acceptTunnelConn(listener net.Listener) {
 			//}
 
 			// trying to set tcpnodelay
-			if !s.config.Nodelay {
-				if err := tcpConn.SetNoDelay(s.config.Nodelay); err != nil {
-					s.logger.Warnf("failed to set TCP_NODELAY for %s: %v", tcpConn.RemoteAddr().String(), err)
-				} else {
-					s.logger.Tracef("TCP_NODELAY disabled for %s", tcpConn.RemoteAddr().String())
-				}
-			}
+			//if !s.config.Nodelay {
+			//	if err := tcpConn.SetNoDelay(s.config.Nodelay); err != nil {
+			//		s.logger.Warnf("failed to set TCP_NODELAY for %s: %v", tcpConn.RemoteAddr().String(), err)
+			//	} else {
+			//		s.logger.Tracef("TCP_NODELAY disabled for %s", tcpConn.RemoteAddr().String())
+			//	}
+			//}
 
 			// Set keep-alive settings
-			if err := tcpConn.SetKeepAlive(true); err != nil {
-				s.logger.Warnf("failed to enable TCP keep-alive for %s: %v", tcpConn.RemoteAddr().String(), err)
-			} else {
-				s.logger.Tracef("TCP keep-alive enabled for %s", tcpConn.RemoteAddr().String())
-			}
-			if err := tcpConn.SetKeepAlivePeriod(s.config.KeepAlive); err != nil {
-				s.logger.Warnf("failed to set TCP keep-alive period for %s: %v", tcpConn.RemoteAddr().String(), err)
-			}
+			//if err := tcpConn.SetKeepAlive(true); err != nil {
+			//	s.logger.Warnf("failed to enable TCP keep-alive for %s: %v", tcpConn.RemoteAddr().String(), err)
+			//} else {
+			//	s.logger.Tracef("TCP keep-alive enabled for %s", tcpConn.RemoteAddr().String())
+			//}
+			//if err := tcpConn.SetKeepAlivePeriod(s.config.KeepAlive); err != nil {
+			//	s.logger.Warnf("failed to set TCP keep-alive period for %s: %v", tcpConn.RemoteAddr().String(), err)
+			//}
 
 			select {
 			case s.tunnelChannel <- conn:
@@ -556,12 +556,12 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 			//inja bayad begirim datashoo buffered bekhonim azash va match konim
 
 			// discard any non-tcp connection
-			tcpConn, ok := conn.(*net.TCPConn)
-			if !ok {
-				s.logger.Warnf("disarded non-TCP connection from %s", conn.RemoteAddr().String())
-				conn.Close()
-				continue
-			}
+			//tcpConn, ok := conn.(*net.TCPConn)
+			//if !ok {
+			//	s.logger.Warnf("disarded non-TCP connection from %s", conn.RemoteAddr().String())
+			//	conn.Close()
+			//	continue
+			//}
 
 			// read without delimiter
 
@@ -593,13 +593,13 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 			//for the [] function splitting using "," if only "," exists in that string, if not return the string value as []string{} only
 
 			// trying to disable tcpnodelay
-			if !s.config.Nodelay {
-				if err := tcpConn.SetNoDelay(s.config.Nodelay); err != nil {
-					s.logger.Warnf("failed to set TCP_NODELAY for %s: %v", tcpConn.RemoteAddr().String(), err)
-				} else {
-					s.logger.Tracef("TCP_NODELAY disabled for %s", tcpConn.RemoteAddr().String())
-				}
-			}
+			//if !s.config.Nodelay {
+			//	if err := tcpConn.SetNoDelay(s.config.Nodelay); err != nil {
+			//		s.logger.Warnf("failed to set TCP_NODELAY for %s: %v", tcpConn.RemoteAddr().String(), err)
+			//	} else {
+			//		s.logger.Tracef("TCP_NODELAY disabled for %s", tcpConn.RemoteAddr().String())
+			//	}
+			//}
 
 			select {
 			case s.localChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
@@ -612,10 +612,10 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 					s.logger.Warn("channel is full, cannot request a new connection")
 				}
 
-				s.logger.Debugf("accepted incoming TCP connection from %s", tcpConn.RemoteAddr().String())
+				s.logger.Debugf("accepted incoming TCP connection from %s", conn.RemoteAddr().String())
 
 			default: // channel is full, discard the connection
-				s.logger.Warnf("channel with listener %s is full, discarding TCP connection from %s", listener.Addr().String(), tcpConn.LocalAddr().String())
+				s.logger.Warnf("channel with listener %s is full, discarding TCP connection from %s", listener.Addr().String(), conn.LocalAddr().String())
 				conn.Close()
 			}
 		}

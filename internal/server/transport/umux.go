@@ -371,12 +371,12 @@ func (s *TcpUMuxTransport) acceptTunnelConn(listener net.Listener) {
 			}
 
 			//discard any non tcp connection
-			tcpConn, ok := conn.(*net.TCPConn)
-			if !ok {
-				s.logger.Warnf("disarded non-TCP tunnel connection from %s", conn.RemoteAddr().String())
-				conn.Close()
-				continue
-			}
+			//tcpConn, ok := conn.(*net.TCPConn)
+			//if !ok {
+			//	s.logger.Warnf("disarded non-TCP tunnel connection from %s", conn.RemoteAddr().String())
+			//	conn.Close()
+			//	continue
+			//}
 
 			// Drop all suspicious packets from other address rather than server
 			//if s.controlChannel != nil && s.controlChannel.RemoteAddr().(*net.TCPAddr).IP.String() != tcpConn.RemoteAddr().(*net.TCPAddr).IP.String() {
@@ -395,14 +395,14 @@ func (s *TcpUMuxTransport) acceptTunnelConn(listener net.Listener) {
 			//}
 
 			// Set keep-alive settings
-			if err := tcpConn.SetKeepAlive(true); err != nil {
-				s.logger.Warnf("failed to enable TCP keep-alive for %s: %v", tcpConn.RemoteAddr().String(), err)
-			} else {
-				s.logger.Tracef("TCP keep-alive enabled for %s", tcpConn.RemoteAddr().String())
-			}
-			if err := tcpConn.SetKeepAlivePeriod(s.config.KeepAlive); err != nil {
-				s.logger.Warnf("failed to set TCP keep-alive period for %s: %v", tcpConn.RemoteAddr().String(), err)
-			}
+			//if err := tcpConn.SetKeepAlive(true); err != nil {
+			//	s.logger.Warnf("failed to enable TCP keep-alive for %s: %v", tcpConn.RemoteAddr().String(), err)
+			//} else {
+			//	s.logger.Tracef("TCP keep-alive enabled for %s", tcpConn.RemoteAddr().String())
+			//}
+			//if err := tcpConn.SetKeepAlivePeriod(s.config.KeepAlive); err != nil {
+			//	s.logger.Warnf("failed to set TCP keep-alive period for %s: %v", tcpConn.RemoteAddr().String(), err)
+			//}
 
 			// try to establish a new channel
 			if s.controlChannel == nil {
@@ -621,12 +621,12 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 			}
 
 			// discard any non-tcp connection
-			tcpConn, ok := conn.(*net.TCPConn)
-			if !ok {
-				s.logger.Warnf("disarded non-TCP connection from %s", conn.RemoteAddr().String())
-				conn.Close()
-				continue
-			}
+			//tcpConn, ok := conn.(*net.TCPConn)
+			//if !ok {
+			//	s.logger.Warnf("disarded non-TCP connection from %s", conn.RemoteAddr().String())
+			//	conn.Close()
+			//	continue
+			//}
 
 			var bfconn *BufferedConn
 			if matchers_exists {
@@ -693,7 +693,7 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 			select {
 			case ThisIPuserTracker.userLocalChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
 				//s.localChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
-				s.logger.Debugf("accepted incoming TCP connection from %s", tcpConn.RemoteAddr().String())
+				s.logger.Debugf("accepted incoming TCP connection from %s", conn.RemoteAddr().String())
 
 				//انتظار میره که بر اساس لوکال کان استریم های جدیدی ایجاد بشه و کپی بین یوزر و سرور اتفاق بیفته
 				ThisIPuserTracker.onceHandleUser.Do(func() {
@@ -709,7 +709,7 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 				})
 
 			default: // channel is full, discard the connection
-				s.logger.Warnf("local listener channel is full, discarding TCP connection from %s", tcpConn.LocalAddr().String())
+				s.logger.Warnf("local listener channel is full, discarding TCP connection from %s", conn.LocalAddr().String())
 			}
 
 		}

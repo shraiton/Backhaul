@@ -499,12 +499,12 @@ func (s *WsMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr strin
 			}
 
 			// discard any non-tcp connection
-			tcpConn, ok := conn.(*net.TCPConn)
-			if !ok {
-				s.logger.Warnf("disarded non-TCP connection from %s", conn.RemoteAddr().String())
-				conn.Close()
-				continue
-			}
+			//tcpConn, ok := conn.(*net.TCPConn)
+			//if !ok {
+			//	s.logger.Warnf("disarded non-TCP connection from %s", conn.RemoteAddr().String())
+			//	conn.Close()
+			//	continue
+			//}
 
 			var bfconn *BufferedConn
 			if matchers_exists {
@@ -528,30 +528,30 @@ func (s *WsMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr strin
 			}
 
 			// trying to enable tcpnodelay
-			if !s.config.Nodelay {
-				if err := tcpConn.SetNoDelay(s.config.Nodelay); err != nil {
-					s.logger.Warnf("failed to set TCP_NODELAY for %s: %v", tcpConn.RemoteAddr().String(), err)
-				} else {
-					s.logger.Tracef("TCP_NODELAY disabled for %s", tcpConn.RemoteAddr().String())
-				}
-			}
+			//if !s.config.Nodelay {
+			//	if err := tcpConn.SetNoDelay(s.config.Nodelay); err != nil {
+			//		s.logger.Warnf("failed to set TCP_NODELAY for %s: %v", tcpConn.RemoteAddr().String(), err)
+			//	} else {
+			//		s.logger.Tracef("TCP_NODELAY disabled for %s", tcpConn.RemoteAddr().String())
+			//	}
+			//}
 
 			// Set keep-alive settings
-			if err := tcpConn.SetKeepAlive(true); err != nil {
-				s.logger.Warnf("failed to enable TCP keep-alive for %s: %v", tcpConn.RemoteAddr().String(), err)
-			} else {
-				s.logger.Tracef("TCP keep-alive enabled for %s", tcpConn.RemoteAddr().String())
-			}
-			if err := tcpConn.SetKeepAlivePeriod(s.config.KeepAlive); err != nil {
-				s.logger.Warnf("failed to set TCP keep-alive period for %s: %v", tcpConn.RemoteAddr().String(), err)
-			}
+			//if err := tcpConn.SetKeepAlive(true); err != nil {
+			//	s.logger.Warnf("failed to enable TCP keep-alive for %s: %v", tcpConn.RemoteAddr().String(), err)
+			//} else {
+			//	s.logger.Tracef("TCP keep-alive enabled for %s", tcpConn.RemoteAddr().String())
+			//}
+			//if err := tcpConn.SetKeepAlivePeriod(s.config.KeepAlive); err != nil {
+			//	s.logger.Warnf("failed to set TCP keep-alive period for %s: %v", tcpConn.RemoteAddr().String(), err)
+			//}
 
 			select {
 			case s.localChannel <- LocalTCPConn{conn: conn, remoteAddr: remoteAddr, timeCreated: time.Now().UnixMilli()}:
-				s.logger.Debugf("accepted incoming TCP connection from %s", tcpConn.RemoteAddr().String())
+				s.logger.Debugf("accepted incoming TCP connection from %s", conn.RemoteAddr().String())
 
 			default: // channel is full, discard the connection
-				s.logger.Warnf("local listener channel is full, discarding TCP connection from %s", tcpConn.LocalAddr().String())
+				s.logger.Warnf("local listener channel is full, discarding TCP connection from %s", conn.LocalAddr().String())
 				conn.Close()
 			}
 		}
