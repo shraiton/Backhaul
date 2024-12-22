@@ -521,13 +521,15 @@ func (s *TcpMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr stri
 		matchers_exists = false
 	}
 
+	var conn net.Conn
+
 	for {
 		select {
 		case <-s.ctx.Done():
 			return
 
 		default:
-			conn, err := listener.Accept()
+			conn, err = listener.Accept()
 			if err != nil {
 				s.logger.Debugf("failed to accept connection on %s: %v", listener.Addr().String(), err)
 				continue
