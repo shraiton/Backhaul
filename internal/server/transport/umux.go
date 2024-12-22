@@ -598,10 +598,13 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 	for {
 		select {
 		case <-s.ctx.Done():
+			s.logger.Warningf("S CTX IS DONE-> CLOSING ACCEPT LOCAL CHAN")
 			return
 
 		default:
+			s.logger.Debugf("Listener is waiting to accept connection")
 			conn, err := listener.Accept()
+			s.logger.Debugf("Listener Accepted The Connection")
 			if err != nil {
 				s.logger.Debugf("failed to accept connection on %s: %v", listener.Addr().String(), err)
 				continue
