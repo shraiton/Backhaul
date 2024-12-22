@@ -679,12 +679,15 @@ func (s *TcpUMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr str
 				s.logger.Debugf("finished requesting for new connection")
 			}
 
-			select {
-			case <-s.ctx.Done():
-				s.logger.Debugf("every thing is closed, s.ctx is done")
-				return
-			case ThisIPuserTracker.userSession = <-s.tunnelChannel:
-				s.logger.Debugf("Nice, this user ip", ThisIPuserTracker.IP, "got a tunnel channel for itself")
+			if (ThisIPuserTracker.userSession == nil) || (ThisIPuserTracker.userSession.IsClosed()) {
+				select {
+				case <-s.ctx.Done():
+					s.logger.Debugf("every thing is closed, s.ctx is done")
+					return
+				case ThisIPuserTracker.userSession = <-s.tunnelChannel:
+					//this seems blocking if there is no tunnel channel available
+					s.logger.Debugf("Nice, this user ip", ThisIPuserTracker.IP, "got a tunnel channel for itself")
+				}
 			}
 
 			select {
