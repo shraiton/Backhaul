@@ -736,6 +736,21 @@ func (s *TcpUMuxTransport) RequestNewConnection() {
 	//}
 }
 
+func (ut *UserTracker) fillTheSessionIfClosed(s *TcpUMuxTransport) {
+	if ut.userSession.IsClosed() {
+		//اگر بسته بود یکی جدید میسازیم
+		go s.RequestNewConnection()
+
+		select {
+		case ut.userSession = <-s.tunnelChannel:
+
+		case <-time.After(time.Second * 3):
+			s.logger.Debug("user session does not got filled after 3 seconds!")
+		}
+	}
+
+}
+
 func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 	s.logger.Debugf("hanle user session comes up")
 
@@ -765,13 +780,15 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 			stream, err := ut.userSession.OpenStream()
 			if err != nil {
 				s.logger.Errorf("failed to open stream: %v", err)
-				ut.userLocalChannel <- incomingConn
 
-				if ut.userSession.IsClosed() {
-					//اگر بسته بود یکی جدید میسازیم
-					go s.RequestNewConnection()
-					ut.userSession = <-s.tunnelChannel
+				select {
+				case ut.userLocalChannel <- incomingConn:
+				default:
+					s.logger.Debug("user local channel was full, so we had to close the incoming conn")
+					incomingConn.conn.Close()
 				}
+
+				ut.fillTheSessionIfClosed(s)
 
 				//اینجا اگر نتونه استریم رو باز کنه حدس میزنیم که سشن قطع شده دوباره یکی دیگه میسازیم جایگزین قبلی میکنیم
 				//و قبلی رو کلوز میکنیم
@@ -790,11 +807,7 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 				ut.userLocalChannel <- incomingConn
 				stream.Close()
 
-				if ut.userSession.IsClosed() {
-					//اگر بسته بود یکی جدید میسازیم
-					go s.RequestNewConnection()
-					ut.userSession = <-s.tunnelChannel
-				}
+				ut.fillTheSessionIfClosed(s)
 
 				continue
 			}
