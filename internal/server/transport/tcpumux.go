@@ -81,6 +81,14 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 					s.logger.Debugf("because we had streams more than 0 we zeroed timenum")
 				}
 			}
+
+			//NO WE DON'T NEED THIS PART BECAUSE IF IT GOT CLOSED WE PULL A NEW SESSION THAT IT WILL BE CLOSED
+			//BECAUSE OF NO STREAMS ON IT
+			//if ut.userSession != nil && ut.userSession.IsClosed() {
+			//session is closed already, we should renew a session or clear it!
+			//we close it because it may got closed because of timeout or something else?
+			//}
+
 		}
 	}
 }
