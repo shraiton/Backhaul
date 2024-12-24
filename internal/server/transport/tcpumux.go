@@ -712,7 +712,7 @@ func (s *TcpUMuxTransport) RequestNewConnection() {
 	//this is blocking until we can create new connection
 	//for {
 
-	if len(s.tunnelChannel) > 30 {
+	if len(s.tunnelChannel) > 20 {
 		s.logger.Warn("becaus we had more than 30 ready connections in tunnel channel we did not request new ones")
 		return
 	}
