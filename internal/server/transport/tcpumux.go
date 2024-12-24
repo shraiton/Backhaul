@@ -68,12 +68,24 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 				if timeNum > 5 {
 					ut.cancel()
 					s.logger.Debugf("closed because no more than", timeNum*5)
-					ut.userSession.Close()
+					//ut.userSession.Close()
+
+					var sssesion *smux.Session
 
 					s.UsersMapMutex.Lock()
+					sssesion = ut.userSession
 					delete(s.UsersMap, ut.IP)
 					s.UsersMapMutex.Unlock()
-					s.logger.Debugf("closed usermap for ip %s", ut.IP)
+					s.logger.Warn("we took session for ip", ut.IP)
+
+					if sssesion != nil {
+						s.logger.Warn("EXPERIMENTAL instead of closing userSession we let other users use it!")
+						select {
+						case s.tunnelChannel <- sssesion:
+						case <-time.After(time.Second * 1):
+							s.logger.Warn("tunnel channel was filled, because of that we cannot put the session back to tunnel channel")
+						}
+					}
 					return
 				}
 				if ut.userSession != nil && ut.userSession.NumStreams() > 0 {
@@ -377,40 +389,6 @@ func (s *TcpUMuxTransport) acceptTunnelConn(listener net.Listener) {
 				s.logger.Debugf("failed to accept tunnel connection on %s: %v", listener.Addr().String(), err)
 				continue
 			}
-
-			//discard any non tcp connection
-			//tcpConn, ok := conn.(*net.TCPConn)
-			//if !ok {
-			//	s.logger.Warnf("disarded non-TCP tunnel connection from %s", conn.RemoteAddr().String())
-			//	conn.Close()
-			//	continue
-			//}
-
-			// Drop all suspicious packets from other address rather than server
-			//if s.controlChannel != nil && s.controlChannel.RemoteAddr().(*net.TCPAddr).IP.String() != tcpConn.RemoteAddr().(*net.TCPAddr).IP.String() {
-			//	s.logger.Debugf("suspicious packet from %v. expected address: %v. discarding packet...", tcpConn.RemoteAddr().(*net.TCPAddr).IP.String(), s.controlChannel.RemoteAddr().(*net.TCPAddr).IP.String())
-			//	tcpConn.Close()
-			//	continue
-			//}
-
-			// trying to set tcpnodelay
-			//if !s.config.Nodelay {
-			//	if err := tcpConn.SetNoDelay(s.config.Nodelay); err != nil {
-			//		s.logger.Warnf("failed to set TCP_NODELAY for %s: %v", tcpConn.RemoteAddr().String(), err)
-			//	} else {
-			//		s.logger.Tracef("TCP_NODELAY disabled for %s", tcpConn.RemoteAddr().String())
-			//	}
-			//}
-
-			// Set keep-alive settings
-			//if err := tcpConn.SetKeepAlive(true); err != nil {
-			//	s.logger.Warnf("failed to enable TCP keep-alive for %s: %v", tcpConn.RemoteAddr().String(), err)
-			//} else {
-			//	s.logger.Tracef("TCP keep-alive enabled for %s", tcpConn.RemoteAddr().String())
-			//}
-			//if err := tcpConn.SetKeepAlivePeriod(s.config.KeepAlive); err != nil {
-			//	s.logger.Warnf("failed to set TCP keep-alive period for %s: %v", tcpConn.RemoteAddr().String(), err)
-			//}
 
 			// try to establish a new channel
 			if s.controlChannel == nil {
@@ -733,6 +711,12 @@ func AcceptLocalConnProcess(conn net.Conn, s *TcpUMuxTransport, matchers_exists 
 func (s *TcpUMuxTransport) RequestNewConnection() {
 	//this is blocking until we can create new connection
 	//for {
+
+	if len(s.tunnelChannel) > 30 {
+		s.logger.Warn("becaus we had more than 30 ready connections in tunnel channel we did not request new ones")
+		return
+	}
+
 	select {
 	case s.reqNewConnChan <- struct{}{}:
 		s.logger.Warn("we requested new channel")
@@ -767,7 +751,7 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 	for {
 		select {
 		case <-ut.ctx.Done():
-			ut.userSession.Close()
+			//ut.userSession.Close()
 			return
 
 		case incomingConn, ok := <-ut.userLocalChannel:
