@@ -60,7 +60,8 @@ func transferWebSocketToTCP(wsConn *websocket.Conn, tcpConn net.Conn, logger *lo
 
 // transferTCPToWebSocket transfers data from a TCP connection to a WebSocket connection
 func transferTCPToWebSocket(tcpConn net.Conn, wsConn *websocket.Conn, logger *logrus.Logger, usage *web.Usage, remotePort int, sniffer bool) {
-	buf := make([]byte, 16*1024) // 16K buffer size
+	buf := *GetBuffer()
+	defer PutBuffer(&buf)
 	for {
 		// Read data from the TCP connection
 		n, err := tcpConn.Read(buf)
