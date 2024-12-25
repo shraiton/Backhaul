@@ -50,8 +50,8 @@ func NewBufferedConn(conn net.Conn) (*BufferedConn, error) {
 
 // Read overrides the default Read method to first serve data from the buffer.
 func (bc *BufferedConn) Read(p []byte) (int, error) {
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
+	//bc.mu.Lock()
+	//defer bc.mu.Unlock()
 
 	// If there is data in the buffer, read from it first
 	if bc.buffer != nil && bc.bufferPos < len(*bc.buffer) {
