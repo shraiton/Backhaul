@@ -25,6 +25,8 @@ func TCPConnectionHandler(from net.Conn, to net.Conn, logger *logrus.Logger, usa
 // Using direct Read and Write for transferring data
 func transferData(from net.Conn, to net.Conn, logger *logrus.Logger, usage *web.Usage, remotePort int, sniffer bool) {
 	buf := make([]byte, 32*1024) // 16K
+
+	var totalWritten int = 0
 	for {
 		// Read data from the source connection
 		r, err := from.Read(buf)
@@ -39,7 +41,7 @@ func transferData(from net.Conn, to net.Conn, logger *logrus.Logger, usage *web.
 			return
 		}
 
-		totalWritten := 0
+		totalWritten = 0
 		for totalWritten < r {
 			// Write data to the destination connection
 			w, err := to.Write(buf[totalWritten:r])
