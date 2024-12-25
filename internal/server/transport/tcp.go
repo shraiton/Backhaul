@@ -570,14 +570,14 @@ func (s *TcpTransport) acceptLocalConn(listener net.Listener, remoteAddr string)
 
 				s.logger.Debug("matcher exists for our port %w")
 
-				bfconn, err = NewBufferedConn(conn, 4096)
+				bfconn, err = NewBufferedConn(conn)
 				if err != nil {
 					s.logger.Warnf("error wrapping incoming conn into buffered connection %s CLOSING CONNECTION", err.Error())
 					conn.Close()
 					continue
 				}
 
-				connString := string(bfconn.buffer)
+				connString := string(*bfconn.buffer)
 				if !containsAny(connString, matchersListForThisPort) {
 					s.logger.Debugf("connection coming from %s does not contain matchers we need %s", conn.RemoteAddr().String(), connString)
 					conn.Close()

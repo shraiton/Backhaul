@@ -642,7 +642,7 @@ func AcceptLocalConnProcess(conn net.Conn, s *TcpUMuxTransport, matchers_exists 
 
 	if matchers_exists {
 
-		bfconn, err = NewBufferedConn(conn, 4096)
+		bfconn, err = NewBufferedConn(conn)
 		if err != nil {
 			s.logger.Warnf("error wrapping incoming conn into buffered connection %s CLOSING CONNECTION", err.Error())
 			conn.Close()
@@ -650,7 +650,7 @@ func AcceptLocalConnProcess(conn net.Conn, s *TcpUMuxTransport, matchers_exists 
 			//continue
 		}
 
-		connString := string(bfconn.buffer)
+		connString := string(*bfconn.buffer)
 		if !containsAny(connString, matchersListForThisPort) {
 			s.logger.Debugf("connection coming from %s does not contain matchers we need", conn.RemoteAddr().String())
 			conn.Close()
