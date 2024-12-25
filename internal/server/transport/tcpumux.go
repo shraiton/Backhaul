@@ -737,7 +737,7 @@ func (s *TcpUMuxTransport) RequestNewConnection() {
 	//for {
 
 	if len(s.tunnelChannel) > 20 {
-		s.logger.Warn("becaus we had more than 30 ready connections in tunnel channel we did not request new ones")
+		s.logger.Warn("becaus we had more than 20 ready connections in tunnel channel we did not request new ones")
 		return
 	}
 
