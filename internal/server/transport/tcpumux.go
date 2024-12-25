@@ -686,7 +686,6 @@ func AcceptLocalConnProcess(conn net.Conn, s *TcpUMuxTransport, matchers_exists 
 
 	if ThisIPuserTracker.userSession == nil || ThisIPuserTracker.userSession.IsClosed() {
 		s.logger.Debug("userSession does not exists or it's closed, we should put new one")
-
 		s.logger.Debugf("requesting new connection- >>>>>>>>>>>>>>>>>>>> DID WE LOCKED IN HERE?")
 		s.RequestNewConnection()
 		s.logger.Debugf("finished requesting for new connection")
@@ -696,10 +695,15 @@ func AcceptLocalConnProcess(conn net.Conn, s *TcpUMuxTransport, matchers_exists 
 		select {
 		case <-s.ctx.Done():
 			s.logger.Debugf("every thing is closed, s.ctx is done")
+			conn.Close()
 			return
 		case ThisIPuserTracker.userSession = <-s.tunnelChannel:
 			//this seems blocking if there is no tunnel channel available
 			s.logger.Debugf("Nice, this user ip", ThisIPuserTracker.IP, "got a tunnel channel for itself")
+		case <-time.After(time.Second * 3):
+			s.logger.Warn("after 3 seconds we could not get a user session for user", conn.RemoteAddr().String(), "so dropping it's connection")
+			conn.Close()
+			return
 		}
 	}
 
@@ -723,6 +727,7 @@ func AcceptLocalConnProcess(conn net.Conn, s *TcpUMuxTransport, matchers_exists 
 
 	default: // channel is full, discard the connection
 		s.logger.Warnf("local listener channel is full, discarding TCP connection from %s", conn.LocalAddr().String())
+		conn.Close()
 	}
 
 }
