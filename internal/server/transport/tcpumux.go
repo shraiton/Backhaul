@@ -45,7 +45,7 @@ func NewUserTracker(IP string) *UserTracker {
 func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 	//check every second for 300 second, if we have no open stream for 300 seconds
 
-	tickerTime := 5 * time.Second
+	tickerTime := 10 * time.Second
 	ticker := time.NewTicker(tickerTime)
 	defer ticker.Stop()
 	//این فانکشن مهمیه. چون هم وضیفه داره کلیر کنه سشن کاربر رو هم وظیفه داره که فانکشن های مربوط رو خارج کنه
@@ -67,7 +67,7 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 				timeNum += 1
 				s.logger.Debugf("there is no streams for more than", timeNum*5)
 
-				if timeNum > 5 {
+				if timeNum > 3 {
 					ut.cancel()
 					s.logger.Debugf("closed because no more than", timeNum*5)
 					//ut.userSession.Close()
@@ -99,7 +99,7 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 				if ut.userSession == nil {
 					timeNil += 1
 
-					if timeNil > 5 {
+					if timeNil > 3 {
 						ut.cancel()
 						s.logger.Debugf("closed because no more than", timeNil*5)
 						s.UsersMapMutex.Lock()
