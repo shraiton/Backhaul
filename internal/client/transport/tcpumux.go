@@ -60,6 +60,7 @@ func NewUMuxClient(parentCtx context.Context, config *TcpUMuxConfig, logger *log
 			Version:           config.MuxVersion,
 			KeepAliveInterval: 20 * time.Second,
 			KeepAliveTimeout:  40 * time.Second,
+			KeepAliveDisabled: false,
 			MaxFrameSize:      config.MaxFrameSize,
 			MaxReceiveBuffer:  config.MaxReceiveBuffer,
 			MaxStreamBuffer:   config.MaxStreamBuffer,

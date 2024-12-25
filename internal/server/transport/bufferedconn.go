@@ -54,7 +54,7 @@ func (bc *BufferedConn) Read(p []byte) (int, error) {
 	defer bc.mu.Unlock()
 
 	// If there is data in the buffer, read from it first
-	if bc.bufferPos < len(*bc.buffer) {
+	if bc.buffer != nil && bc.bufferPos < len(*bc.buffer) {
 		n := copy(p, (*bc.buffer)[bc.bufferPos:])
 		bc.bufferPos += n
 		return n, nil

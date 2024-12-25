@@ -501,14 +501,6 @@ func (s *TcpMuxTransport) acceptLocalConn(listener net.Listener, remoteAddr stri
 				continue
 			}
 
-			// discard any non-tcp connection
-			///tcpConn, ok := conn.(*net.TCPConn)
-			//if !ok {
-			//	s.logger.Warnf("disarded non-TCP connection from %s", conn.RemoteAddr().String())
-			//	conn.Close()
-			//	continue
-			//}
-
 			var bfconn *BufferedConn
 			if matchers_exists {
 
