@@ -51,7 +51,9 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 	//این فانکشن مهمیه. چون هم وضیفه داره کلیر کنه سشن کاربر رو هم وظیفه داره که فانکشن های مربوط رو خارج کنه
 
 	s.logger.Debugf("start tracking sessions for ip %s", ut.IP)
-	var timeNum = 0
+	var timeNum int = 0
+
+	var timeNil int = 0
 
 	for {
 		select {
@@ -84,6 +86,7 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 						case s.tunnelChannel <- sssesion:
 						case <-time.After(time.Second * 1):
 							s.logger.Warn("tunnel channel was filled, because of that we cannot put the session back to tunnel channel")
+							sssesion.Close() //because tunnelchannel does not received our session we closed it!
 						}
 					}
 					return
@@ -91,6 +94,22 @@ func (ut *UserTracker) TrackSessionStreams(s *TcpUMuxTransport) {
 				if ut.userSession != nil && ut.userSession.NumStreams() > 0 {
 					timeNum = 0
 					s.logger.Debugf("because we had streams more than 0 we zeroed timenum")
+				}
+
+				if ut.userSession == nil {
+					timeNil += 1
+
+					if timeNil > 5 {
+						ut.cancel()
+						s.logger.Debugf("closed because no more than", timeNil*5)
+						s.UsersMapMutex.Lock()
+						delete(s.UsersMap, ut.IP)
+						s.UsersMapMutex.Unlock()
+						s.logger.Warn("we took userMap for ip", ut.IP, "because user session was NIL for 30 secs?")
+						return
+					}
+				} else {
+					timeNil = 0
 				}
 			}
 
@@ -733,12 +752,23 @@ func (ut *UserTracker) fillTheSessionIfClosed(s *TcpUMuxTransport) {
 		//اگر بسته بود یکی جدید میسازیم
 		go s.RequestNewConnection()
 
-		select {
-		case ut.userSession = <-s.tunnelChannel:
+		for {
+			select {
+			case new_session_candidate := <-s.tunnelChannel:
+				if new_session_candidate.IsClosed() {
+					s.logger.Warn("session that was lying inide tunnel channel was closed, retry another one")
+					continue
+				}
 
-		case <-time.After(time.Second * 3):
-			s.logger.Debug("user session does not got filled after 3 seconds!")
+				ut.userSession = new_session_candidate
+				return
+
+			case <-time.After(time.Second * 3):
+				s.logger.Warn("user session does not got filled after 3 seconds!")
+				return
+			}
 		}
+
 	}
 
 }
@@ -765,6 +795,19 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 			if time.Now().UnixMilli()-incomingConn.timeCreated > 3000 { // 3000ms
 				s.logger.Debugf("timeouted local connection: %d ms", time.Now().UnixMilli()-incomingConn.timeCreated)
 				incomingConn.conn.Close()
+				continue
+			}
+
+			if ut.userSession == nil {
+
+				select {
+				case ut.userLocalChannel <- incomingConn:
+				default:
+					s.logger.Debug("user local channel was full, so we had to close the incoming conn")
+					incomingConn.conn.Close()
+				}
+
+				ut.fillTheSessionIfClosed(s)
 				continue
 			}
 
@@ -796,7 +839,13 @@ func (ut *UserTracker) handleUserSession(s *TcpUMuxTransport) {
 			if err := utils.SendBinaryString(stream, incomingConn.remoteAddr); err != nil {
 				s.logger.Errorf("failed to handle session: %v", err)
 				//ut.handleUserSessionError(&incomingConn)
-				ut.userLocalChannel <- incomingConn
+
+				select {
+				case ut.userLocalChannel <- incomingConn:
+				default:
+					s.logger.Debug("user local channel was full, so we had to close the incoming conn")
+					incomingConn.conn.Close()
+				}
 				stream.Close()
 
 				ut.fillTheSessionIfClosed(s)
