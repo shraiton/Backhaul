@@ -57,6 +57,12 @@ func (bc *BufferedConn) Read(p []byte) (int, error) {
 	if bc.buffer != nil && bc.bufferPos < len(*bc.buffer) {
 		n := copy(p, (*bc.buffer)[bc.bufferPos:])
 		bc.bufferPos += n
+
+		if bc.buffer != nil && bc.bufferPos == len(*bc.buffer) {
+			utils.PutBuffer4k(bc.buffer) // Return buffer to the pool
+			bc.buffer = nil
+		}
+
 		return n, nil
 	}
 
