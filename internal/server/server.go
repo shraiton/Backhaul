@@ -295,6 +295,31 @@ func (s *Server) Start() {
 		wsMuxServer := transport.NewWSMuxServer(s.ctx, wsMuxConfig, s.logger)
 		go wsMuxServer.Start()
 
+	} else if s.config.Transport == config.WSUMUX || s.config.Transport == config.WSSUMUX {
+		wsUMuxConfig := &transport.WsUMuxConfig{
+			BindAddr:         s.config.BindAddr,
+			Nodelay:          s.config.Nodelay,
+			KeepAlive:        time.Duration(s.config.Keepalive) * time.Second,
+			Heartbeat:        time.Duration(s.config.Heartbeat) * time.Second,
+			Token:            s.config.Token,
+			ChannelSize:      s.config.ChannelSize,
+			Ports:            s.config.Ports,
+			MuxCon:           s.config.MuxCon,
+			MuxVersion:       s.config.MuxVersion,
+			MaxFrameSize:     s.config.MaxFrameSize,
+			MaxReceiveBuffer: s.config.MaxReceiveBuffer,
+			MaxStreamBuffer:  s.config.MaxStreamBuffer,
+			Sniffer:          s.config.Sniffer,
+			WebPort:          s.config.WebPort,
+			SnifferLog:       s.config.SnifferLog,
+			Mode:             s.config.Transport,
+			TLSCertFile:      s.config.TLSCertFile,
+			TLSKeyFile:       s.config.TLSKeyFile,
+			Matchers:         s.config.Matchers,
+		}
+
+		wsUMuxServer := transport.NewWSUMuxServer(s.ctx, wsUMuxConfig, s.logger)
+		go wsUMuxServer.Start()
 	} else if s.config.Transport == config.QUIC {
 		quicConfig := &transport.QuicConfig{
 			BindAddr:    s.config.BindAddr,

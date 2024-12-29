@@ -11,6 +11,8 @@ const (
 	WSS     TransportType = "wss"
 	WSMUX   TransportType = "wsmux"
 	WSSMUX  TransportType = "wssmux"
+	WSUMUX  TransportType = "wsumux"
+	WSSUMUX TransportType = "wssumux"
 	QUIC    TransportType = "quic"
 	UDP     TransportType = "udp"
 )
