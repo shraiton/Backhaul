@@ -381,7 +381,7 @@ func (s *TcpUMuxTransport) channelHandler() {
 
 func (s *TcpUMuxTransport) tunnelListener() {
 	//listener, err := net.Listen("tcp", s.config.BindAddr)
-	listener, err := listenWithBuffers("tcp", s.config.BindAddr, 2*1024*1024, 2*1024*1024, 1320, "bbr")
+	listener, err := listenWithBuffers("tcp", s.config.BindAddr, 3*1024*1024, 3*1024*1024, 1320, "bbr")
 	if err != nil {
 		s.logger.Fatalf("failed to start listener on %s: %v", s.config.BindAddr, err)
 		return

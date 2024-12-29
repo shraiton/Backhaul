@@ -329,7 +329,7 @@ func (c *TcpUMuxTransport) tunnelDialer() {
 
 	// Dial to the tunnel server
 	// in case of mux we set 2M which is good for 200mbit per connection
-	tunnelConn, err := TcpDialer(c.ctx, c.config.RemoteAddr, c.config.DialTimeOut, c.config.KeepAlive, c.config.Nodelay, 3, 2*1024*1024, 2*1024*1024, 1320, "bbr", c.config.Travor)
+	tunnelConn, err := TcpDialer(c.ctx, c.config.RemoteAddr, c.config.DialTimeOut, c.config.KeepAlive, c.config.Nodelay, 3, 3*1024*1024, 3*1024*1024, 1320, "bbr", c.config.Travor)
 	if err != nil {
 		c.logger.Errorf("tunnel server dialer: %v", err)
 
