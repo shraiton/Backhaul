@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"time"
 )
 
 var fixedBindIP net.IP
@@ -138,7 +139,13 @@ func (d *TravorDial) DialContext(ctx context.Context, network, addr string) (net
 	}
 	fixCounter += 1
 
-	return dialer.DialContext(ctx, "tcp", fullAddr)
+	ct, _ := context.WithTimeout(ctx, 3*time.Second)
+	conn, err := dialer.DialContext(ct, "tcp", fullAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 func resolveToIPv6(host string) (net.IP, error) {

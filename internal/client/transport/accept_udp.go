@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const BufferSize = 16 * 1024
+const BufferSize = 32 * 1024
 
 func UDPDialer(tcp net.Conn, remoteAddr string, logger *logrus.Logger, usage *web.Usage, remotePort int, sniffer bool) {
 	remoteUDPAddr, err := net.ResolveUDPAddr("udp", remoteAddr)

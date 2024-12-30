@@ -25,8 +25,8 @@ type TcpMuxTransport struct {
 	controlChannel  net.Conn
 	usageMonitor    *web.Usage
 	restartMutex    sync.Mutex
-	poolConnections int32
-	loadConnections int32
+	poolConnections int64
+	loadConnections int64
 	controlFlow     chan struct{}
 }
 
@@ -223,7 +223,7 @@ func (c *TcpMuxTransport) poolMaintainer() {
 	defer tickerLoad.Stop()
 
 	newPoolSize := c.config.ConnPoolSize // intial value
-	var poolConnectionsSum int32 = 0
+	var poolConnectionsSum int64 = 0
 
 	for {
 		select {
@@ -232,16 +232,16 @@ func (c *TcpMuxTransport) poolMaintainer() {
 
 		case <-tickerPool.C:
 			// Accumulate pool connections over time (every second)
-			atomic.AddInt32(&poolConnectionsSum, atomic.LoadInt32(&c.poolConnections))
+			atomic.AddInt64(&poolConnectionsSum, atomic.LoadInt64(&c.poolConnections))
 
 		case <-tickerLoad.C:
 			// Calculate the loadConnections over the last 10 seconds
-			loadConnections := (int(atomic.LoadInt32(&c.loadConnections)) + 9) / 10 // +9 for ceil-like logic
-			atomic.StoreInt32(&c.loadConnections, 0)                                // Reset
+			loadConnections := (int(atomic.LoadInt64(&c.loadConnections)) + 9) / 10 // +9 for ceil-like logic
+			atomic.StoreInt64(&c.loadConnections, 0)                                // Reset
 
 			// Calculate the average pool connections over the last 10 seconds
-			poolConnectionsAvg := (int(atomic.LoadInt32(&poolConnectionsSum)) + 9) / 10 // +9 for ceil-like logic
-			atomic.StoreInt32(&poolConnectionsSum, 0)                                   // Reset
+			poolConnectionsAvg := (int(atomic.LoadInt64(&poolConnectionsSum)) + 9) / 10 // +9 for ceil-like logic
+			atomic.StoreInt64(&poolConnectionsSum, 0)                                   // Reset
 
 			// Dynamically adjust the pool size based on current connections
 			if (loadConnections + a) > poolConnectionsAvg*b {
@@ -295,7 +295,7 @@ func (c *TcpMuxTransport) channelHandler() {
 		case msg := <-msgChan:
 			switch msg {
 			case utils.SG_Chan:
-				atomic.AddInt32(&c.loadConnections, 1)
+				atomic.AddInt64(&c.loadConnections, 1)
 
 				select {
 				case <-c.controlFlow: // Do nothing
@@ -336,14 +336,14 @@ func (c *TcpMuxTransport) tunnelDialer() {
 	}
 
 	// Increment active connections counter
-	atomic.AddInt32(&c.poolConnections, 1)
+	atomic.AddInt64(&c.poolConnections, 1)
 
 	c.handleSession(tunnelConn)
 }
 
 func (c *TcpMuxTransport) handleSession(tunnelConn net.Conn) {
 	defer func() {
-		atomic.AddInt32(&c.poolConnections, -1)
+		atomic.AddInt64(&c.poolConnections, -1)
 	}()
 
 	// SMUX server

@@ -132,17 +132,25 @@ func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration
 				})
 			}
 
+			err = s.Control(func(fd uintptr) {
+				if err = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_TCP, syscall.TCP_NODELAY, 1); err != nil {
+					err = fmt.Errorf("failed to set TCP NoDelay: %v", err)
+				}
+			})
+
 			return err
 
 		},
-		Timeout:   timeout,   // Set the connection timeout
-		KeepAlive: keepAlive, // Set the keep-alive duration
+		Timeout:         timeout,   // Set the connection timeout
+		KeepAlive:       keepAlive, // Set the keep-alive duration
+		KeepAliveConfig: net.KeepAliveConfig{Enable: true, Interval: 10 * time.Second, Count: 5, Idle: 30},
 	}
 
+	ct, _ := context.WithTimeout(ctx, 3*time.Second)
 	// Dial the TCP connection with a timeout
-	conn, err := dialer.DialContext(ctx, "tcp", tcpAddr.String())
+	conn, err := dialer.DialContext(ct, "tcp", tcpAddr.String())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to dialContext shared.go %s", err.Error())
 	}
 
 	// Type assert the net.Conn to *net.TCPConn
@@ -150,14 +158,6 @@ func attemptTcpDialer(ctx context.Context, address string, timeout time.Duration
 	if !ok {
 		conn.Close()
 		return nil, fmt.Errorf("failed to convert net.Conn to *net.TCPConn")
-	}
-
-	if !nodelay {
-		err = tcpConn.SetNoDelay(false)
-		if err != nil {
-			tcpConn.Close()
-			return nil, fmt.Errorf("failed to set TCP_NODELAY")
-		}
 	}
 
 	return tcpConn, nil
@@ -184,7 +184,7 @@ func ReusePortControl(network, address string, s syscall.RawConn) error {
 	})
 
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to set SO_REUSEADDR or SO_REUSEPORT on Dialer %s with error", err.Error())
 	}
 
 	return controlErr
@@ -296,7 +296,7 @@ func attemptDialWebSocket(ctx context.Context, addr string, edgeIP string, path 
 
 		dialer = websocket.Dialer{
 			EnableCompression: true,
-			HandshakeTimeout:  45 * time.Second, // default handshake timeout
+			HandshakeTimeout:  8 * time.Second, // default handshake timeout
 			NetDial: func(_, addr string) (net.Conn, error) {
 				conn, err := TcpDialer(ctx, edgeIP, timeout, keepalive, nodelay, 1, SO_RCVBUF, SO_SNDBUF, mss, congestionControl, travor)
 				if err != nil {
@@ -315,8 +315,8 @@ func attemptDialWebSocket(ctx context.Context, addr string, edgeIP string, path 
 
 		dialer = websocket.Dialer{
 			EnableCompression: true,
-			TLSClientConfig:   tlsConfig,        // Pass the insecure TLS config here
-			HandshakeTimeout:  45 * time.Second, // default handshake timeout
+			TLSClientConfig:   tlsConfig,       // Pass the insecure TLS config here
+			HandshakeTimeout:  8 * time.Second, // default handshake timeout
 			NetDial: func(_, addr string) (net.Conn, error) {
 				conn, err := TcpDialer(ctx, edgeIP, timeout, keepalive, nodelay, 1, SO_RCVBUF, SO_SNDBUF, mss, congestionControl, travor)
 				if err != nil {
